@@ -208,7 +208,7 @@ wss.on('connection', (ws) => {
           // Update player state
           if (players[playerId]) {
             players[playerId].state = data.state;
-            console.log(`state_update from ${playerId}: x=${Math.round(data.state.x)}, y=${Math.round(data.state.y)}`);
+            console.log(`state_update from ${playerId} (mode: ${players[playerId].mode}): x=${Math.round(data.state.x)}, y=${Math.round(data.state.y)}`);
             
             // In anyplayer mode, broadcast to all in lobby
             if (players[playerId].mode === 'anyplayer') {
@@ -222,12 +222,30 @@ wss.on('connection', (ws) => {
                 }
               });
             } else {
-              // Regular 2-player mode
-              broadcastToOthers(playerId, {
-                type: 'player_state',
-                playerId,
-                state: data.state
-              });
+              // Regular 2-player mode - only broadcast to other players in same mode (if set)
+              // If player has a mode set, broadcast only to players in same mode
+              if (players[playerId].mode && (players[playerId].mode === 'coop' || players[playerId].mode === 'vs')) {
+                // Find all players in same mode
+                let sentCount = 0;
+                Object.keys(players).forEach(pid => {
+                  if (pid !== playerId && players[pid] && players[pid].mode === players[playerId].mode) {
+                    players[pid].ws.send(JSON.stringify({
+                      type: 'player_state',
+                      playerId,
+                      state: data.state
+                    }));
+                    sentCount++;
+                  }
+                });
+                console.log(`  Sent state to ${sentCount} players in same mode (${players[playerId].mode})`);
+              } else {
+                // No mode set yet, broadcast to all others (legacy behavior for initial sync)
+                broadcastToOthers(playerId, {
+                  type: 'player_state',
+                  playerId,
+                  state: data.state
+                });
+              }
             }
           }
           break;

@@ -645,12 +645,12 @@
     #playerList {
       position: fixed;
       top: 150px;
-      right: 90px;
-      background: rgba(15, 27, 42, 0.95);
+      right: 20px;
+      background: rgba(15, 27, 42, 0.6);
       border: 2px solid rgba(126, 200, 255, 0.5);
       border-radius: 6px;
       padding: 9px 12px;
-      min-width: 135px;
+      min-width: 80px;
       max-height: 300px;
       overflow-y: auto;
       z-index: 1000;
@@ -2414,6 +2414,8 @@ function playSound(soundName) {
   // soundEnabled is global (defined outside this scope)
   let dualCannon = false; // Powerup from destroying UFO
   let vsKills = 0; // Kill counter for VS mode
+  let playerKills = 0; // Battle Royale kills counter
+  let playerDeaths = 0; // Battle Royale deaths counter
   
   // Create background stars
   for (let i = 0; i < 150; i++) {
@@ -2485,6 +2487,15 @@ function playSound(soundName) {
     const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
     if ((gameMode === 'vs' || gameMode === 'anyplayer') && !ship.exploded) {
       lives--;
+      
+      // In royal mode, track deaths instead of lives
+      if (gameMode === 'anyplayer') {
+        playerDeaths++;
+        console.log(`Hit by other player! Deaths: ${playerDeaths}/50`);
+      } else {
+        console.log(`Hit by other player! Lives remaining: ${lives}`);
+      }
+      
       dualCannon = false;
       dualThruster = false;
       thrusterPower = 1;
@@ -2496,9 +2507,11 @@ function playSound(soundName) {
       ship.respawnTime = Date.now() + 3000;
       createParticles(ship.x, ship.y, 30);
       playSound('explosion');
-      console.log(`Hit by other player! Lives remaining: ${lives}`);
       
-      if (lives <= 0) {
+      // Check game over conditions
+      const shouldGameOver = gameMode === 'anyplayer' ? playerDeaths >= 50 : lives <= 0;
+      
+      if (shouldGameOver) {
         // Opponent killed us - they get a kill
         if (window.broadcastKill) {
           window.broadcastKill();
@@ -2838,11 +2851,21 @@ function playSound(soundName) {
             ship.respawnTime = Date.now() + 3000;
             createParticles(ship.x, ship.y, 30);
             playSound('explosion');
-            console.log(`Ship destroyed by UFO collision! Lives remaining: ${lives}`);
             
-            if (lives <= 0) {
-              gameOver = true;
-              console.log('GAME OVER!');
+            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+            if (currentGameMode === 'anyplayer') {
+              playerDeaths++;
+              console.log(`Ship destroyed by UFO collision! Deaths: ${playerDeaths}/50`);
+              if (playerDeaths >= 50) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
+            } else {
+              console.log(`Ship destroyed by UFO collision! Lives remaining: ${lives}`);
+              if (lives <= 0) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
             }
           }
         }
@@ -2926,11 +2949,21 @@ function playSound(soundName) {
           createParticles(ship.x, ship.y, 30);
           ufoBullets.splice(index, 1);
           playSound('explosion');
-          console.log(`Ship destroyed by UFO bullet! Lives remaining: ${lives}`);
           
-          if (lives <= 0) {
-            gameOver = true;
-            console.log('GAME OVER!');
+          const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+          if (currentGameMode === 'anyplayer') {
+            playerDeaths++;
+            console.log(`Ship destroyed by UFO bullet! Deaths: ${playerDeaths}/50`);
+            if (playerDeaths >= 50) {
+              gameOver = true;
+              console.log('GAME OVER!');
+            }
+          } else {
+            console.log(`Ship destroyed by UFO bullet! Lives remaining: ${lives}`);
+            if (lives <= 0) {
+              gameOver = true;
+              console.log('GAME OVER!');
+            }
           }
           return;
         }
@@ -3457,11 +3490,21 @@ function playSound(soundName) {
             ship.respawnTime = Date.now() + 3000;
             createBombExplosion(bomb.x, bomb.y);
             playSound('explosion');
-            console.log(`Ship destroyed by bomb! Lives remaining: ${lives}`);
             
-            if (lives <= 0) {
-              gameOver = true;
-              console.log('GAME OVER!');
+            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+            if (currentGameMode === 'anyplayer') {
+              playerDeaths++;
+              console.log(`Ship destroyed by bomb! Deaths: ${playerDeaths}/50`);
+              if (playerDeaths >= 50) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
+            } else {
+              console.log(`Ship destroyed by bomb! Lives remaining: ${lives}`);
+              if (lives <= 0) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
             }
             
             // Notify the bomb owner they got a kill
@@ -3530,11 +3573,21 @@ function playSound(soundName) {
             ship.respawnTime = Date.now() + 3000; // Respawn after 3 seconds
             createParticles(ship.x, ship.y, 30);
             playSound('explosion');
-            console.log(`Ship destroyed by large asteroid! Lives remaining: ${lives}`);
             
-            if (lives <= 0) {
-              gameOver = true;
-              console.log('GAME OVER!');
+            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+            if (currentGameMode === 'anyplayer') {
+              playerDeaths++;
+              console.log(`Ship destroyed by large asteroid! Deaths: ${playerDeaths}/50`);
+              if (playerDeaths >= 50) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
+            } else {
+              console.log(`Ship destroyed by large asteroid! Lives remaining: ${lives}`);
+              if (lives <= 0) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
             }
           }
         }
@@ -3793,13 +3846,16 @@ function playSound(soundName) {
                 createParticles(player.x, player.y, 15);
                 playSound('explosion');
                 
+                // Increment kills for hitting player
+                playerKills++;
+                score += 1000; // Big points for hitting player
+                console.log(`💀 Hit player ${playerId}! Kills: ${playerKills}`);
+                
                 // Broadcast hit to that player
                 if (window.broadcastPlayerHit) {
                   window.broadcastPlayerHit(playerId);
                 }
                 
-                score += 1000; // Big points for hitting player
-                console.log(`Hit player ${playerId}!`);
                 return;
               }
             }
@@ -4192,15 +4248,19 @@ function playSound(soundName) {
       
       // Get owner color if available
       let bombColor = 'rgba(255, 50, 50, 0.9)';
-      if (bomb.owner && allPlayers[bomb.owner]) {
+      const getPlayerColor = window.getPlayerColor;
+      if (bomb.owner && getPlayerColor) {
+        const ownerColor = getPlayerColor(bomb.owner);
+        if (ownerColor && ownerColor.primary) {
+          bombColor = ownerColor.primary.replace('0.7)', '0.9)');
+        }
+      } else if (bomb.owner && allPlayers[bomb.owner]) {
         const playerColor = allPlayers[bomb.owner].color || 0;
         const playerColorsArray = window.getPlayerColors ? window.getPlayerColors() : [];
         if (playerColorsArray.length > 0) {
           const colors = playerColorsArray[playerColor % playerColorsArray.length];
           bombColor = colors.primary;
         }
-      } else if (bomb.owner === currentPlayerId) {
-        bombColor = 'rgba(255, 150, 50, 0.9)'; // Orange for my bombs
       }
       
       // Draw bomb circle
@@ -4263,12 +4323,20 @@ function playSound(soundName) {
     ctx.save();
     ctx.shadowBlur = 0;
     
-    // Score (top left) - or Kills in VS mode
+    // Score (top left) - or Kills in VS mode, or Kills/Deaths in anyplayer mode
     ctx.fillStyle = 'rgba(126, 240, 163, 0.9)';
     ctx.font = 'bold 24px system-ui';
     ctx.textAlign = 'left';
     const hudGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-    const hudDisplayText = hudGameMode === 'vs' ? `Kills: ${vsKills}` : `Score: ${score}`;
+    let hudDisplayText = '';
+    if (hudGameMode === 'anyplayer') {
+      const currentKills = window.getPlayerKills ? window.getPlayerKills() : 0;
+      hudDisplayText = `Kills: ${currentKills}`;
+    } else if (hudGameMode === 'vs') {
+      hudDisplayText = `Kills: ${vsKills}`;
+    } else {
+      hudDisplayText = `Score: ${score}`;
+    }
     ctx.fillText(hudDisplayText, 20, 40);
     
     // Game mode indicator
@@ -4295,12 +4363,44 @@ function playSound(soundName) {
         ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
         ctx.font = 'bold 16px system-ui';
         ctx.fillText(`💣 Bombs: ${bombCount}/${MAX_BOMBS}`, 20, 87);
+        
+        // Q to Quit instruction
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
+        ctx.font = 'bold 12px system-ui';
+        ctx.fillText('Press Q to Quit', 20, 107);
       }
     }
     
-    // Lives (top right) - draw ship icons
+    // Lives/Deaths (top right) - show deaths in anyplayer mode, lives otherwise
     ctx.textAlign = 'right';
-    ctx.fillText('Lives:', canvas.width - 100, 40);
+    const hudGameModeRight = window.getGameMode ? window.getGameMode() : 'solo';
+    if (hudGameModeRight === 'anyplayer') {
+      const currentDeaths = window.getPlayerDeaths ? window.getPlayerDeaths() : 0;
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
+      ctx.font = 'bold 24px system-ui';
+      ctx.fillText(`Deaths: ${currentDeaths}/50`, canvas.width - 20, 40);
+    } else {
+      ctx.fillText('Lives:', canvas.width - 100, 40);
+      // Draw life indicators only in non-anyplayer modes
+      for (let i = 0; i < lives; i++) {
+        const x = canvas.width - 70 + (i * 25);
+        const y = 30;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = 'rgba(126, 240, 163, 0.8)';
+        ctx.fillStyle = 'rgba(126, 240, 163, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, -6);
+        ctx.lineTo(-8, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
     
     // Powerup indicators
     let powerupY = 70;
@@ -4333,25 +4433,6 @@ function playSound(soundName) {
       ctx.fillText(`🛡️ ${forcefieldText}`, 20, powerupY);
     }
     
-    for (let i = 0; i < lives; i++) {
-      const x = canvas.width - 70 + (i * 25);
-      const y = 30;
-      
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.strokeStyle = 'rgba(126, 240, 163, 0.8)';
-      ctx.fillStyle = 'rgba(126, 240, 163, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(10, 0);
-      ctx.lineTo(-8, -6);
-      ctx.lineTo(-8, 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
-    
     // Game Over message
     if (gameOver) {
       const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
@@ -4369,7 +4450,7 @@ function playSound(soundName) {
       ctx.shadowBlur = 10;
       
       if (currentGameMode === 'anyplayer') {
-        ctx.fillText(`Battle Royale - Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+        ctx.fillText(`Battle Royale - Kills: ${playerKills} | Deaths: ${playerDeaths}`, canvas.width / 2, canvas.height / 2 + 50);
       } else if (currentGameMode === 'vs') {
         ctx.fillText(`VS Mode - Final Kills: ${vsKills}`, canvas.width / 2, canvas.height / 2 + 50);
       } else if (currentGameMode === 'coop') {
@@ -4520,6 +4601,12 @@ function playSound(soundName) {
   window.getGameCanvas = () => canvas; // Expose canvas for Play Again button
   window.getLives = () => lives;
   window.getScore = () => score;
+  window.getPlayerKills = () => playerKills;
+  window.setPlayerKills = (kills) => { playerKills = kills; };
+  window.getPlayerDeaths = () => playerDeaths;
+  window.setPlayerDeaths = (deaths) => { playerDeaths = deaths; };
+  window.incrementPlayerKills = () => { playerKills++; };
+  window.incrementPlayerDeaths = () => { playerDeaths++; };
   
   // Expose game objects for radar and multiplayer
   window.getShip = () => ship;
@@ -4658,6 +4745,25 @@ function playSound(soundName) {
     if (e.key === 'Escape') {
       e.preventDefault();
       togglePause();
+    }
+    
+    // Q key to quit Battle Royale back to lobby
+    if ((e.key === 'q' || e.key === 'Q')) {
+      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+      const gameOver = window.getGameOver ? window.getGameOver() : false;
+      
+      // Allow quitting only in Battle Royale mode
+      if (gameMode === 'anyplayer') {
+        e.preventDefault();
+        
+        // Reset game state and show lobby
+        if (window.setGameOver) {
+          window.setGameOver(true);
+        }
+        
+        // Reload page to return to lobby
+        window.location.reload(true);
+      }
     }
   });
   
@@ -5135,11 +5241,46 @@ function playSound(soundName) {
     { name: 'Teal', primary: 'rgba(80, 220, 200, 0.7)', fill: 'rgba(80, 220, 200, 0.15)' }
   ];
   
-  // Assign colors to players
+  // Cache for assigned colors to ensure consistency
+  const playerColorMap = {};
+  
+  // Assign colors to players - consistently across all game modes
   function getPlayerColor(playerId) {
-    const playerIds = Object.keys(allPlayers).sort();
-    const index = playerIds.indexOf(playerId);
-    return playerColors[index % playerColors.length];
+    // If already assigned, return it
+    if (playerColorMap[playerId]) {
+      return playerColorMap[playerId];
+    }
+    
+    // For anyplayer mode, assign based on sorted player list
+    if (gameMode === 'anyplayer') {
+      const playerIds = Object.keys(allPlayers).sort();
+      const index = playerIds.indexOf(playerId);
+      const color = playerColors[index % playerColors.length];
+      playerColorMap[playerId] = color;
+      return color;
+    }
+    
+    // For 2-player modes (coop, vs), use a different approach
+    // Local player gets green, other player gets their mode-appropriate color
+    if (playerId === myPlayerId) {
+      // Local player - always green
+      const color = { name: 'Green', primary: 'rgba(126, 240, 163, 0.7)', fill: 'rgba(126, 240, 163, 0.15)' };
+      playerColorMap[playerId] = color;
+      return color;
+    } else if (playerId === otherPlayerId || gameMode !== 'anyplayer') {
+      // Other player in 2-player mode
+      const color = gameMode === 'vs' 
+        ? { name: 'Red', primary: 'rgba(255, 107, 107, 0.7)', fill: 'rgba(255, 107, 107, 0.15)' }
+        : { name: 'Orange', primary: 'rgba(255, 165, 50, 0.7)', fill: 'rgba(255, 165, 50, 0.15)' };
+      playerColorMap[playerId] = color;
+      return color;
+    }
+    
+    // Fallback
+    const index = Object.keys(playerColorMap).length % playerColors.length;
+    const color = playerColors[index];
+    playerColorMap[playerId] = color;
+    return color;
   }
   
   const lobbyOverlay = document.getElementById('lobbyOverlay');
@@ -5249,6 +5390,8 @@ function playSound(soundName) {
         if (data.accepted) {
           console.log(`Calling startMultiplayerGame with mode: ${data.mode || 'coop'}`);
           startMultiplayerGame(data.playerId, data.mode || 'coop');
+          // Store the other player's ID with their mode to ensure proper routing
+          otherPlayerId = data.playerId;
         } else {
           alert('Join request declined');
           lobbyOverlay.classList.add('active');
@@ -5261,7 +5404,7 @@ function playSound(soundName) {
       case 'player_state':
         // Update other player's ship with interpolation
         if (data.playerId !== myPlayerId && isMultiplayer) {
-          console.log(`Received player_state from ${data.playerId}: x=${data.state.x.toFixed(0)}, y=${data.state.y.toFixed(0)}`);
+          console.log(`Received player_state from ${data.playerId}: x=${data.state.x.toFixed(0)}, y=${data.state.y.toFixed(0)}, gameMode=${gameMode}`);
           if (gameMode === 'anyplayer') {
             // In anyplayer mode, track all players
             if (!allPlayers[data.playerId]) {
@@ -5274,14 +5417,18 @@ function playSound(soundName) {
                 size: 15,
                 thrust: data.state.thrust || false,
                 lives: data.state.lives || 3,
-                score: data.state.score || 0
+                score: data.state.score || 0,
+                kills: data.state.kills || 0,
+                deaths: data.state.deaths || 0
               };
+              console.log(`  Created new player entry in anyplayer mode: ${data.playerId}`);
             } else {
               // Update existing player
               Object.assign(allPlayers[data.playerId], data.state);
             }
           } else {
             // Regular 2-player mode
+            console.log(`  Updating 2-player mode: otherPlayerId=${otherPlayerId}, incomingPlayerId=${data.playerId}`);
             if (!otherPlayerShip) {
               otherPlayerShip = {
                 x: data.state.x,
@@ -5293,11 +5440,19 @@ function playSound(soundName) {
                 thrust: data.state.thrust || false
               };
               otherPlayerTargetState = { ...data.state };
+              console.log(`  Created otherPlayerShip at (${data.state.x.toFixed(0)}, ${data.state.y.toFixed(0)})`);
             } else {
               // Set target state for smooth interpolation
               otherPlayerTargetState = { ...data.state };
               lastUpdateTime = Date.now();
+              console.log(`  Updated otherPlayerShip target to (${data.state.x.toFixed(0)}, ${data.state.y.toFixed(0)})`);
             }
+          }
+        } else {
+          if (data.playerId === myPlayerId) {
+            console.log(`  Ignoring player_state from self (${myPlayerId})`);
+          } else if (!isMultiplayer) {
+            console.log(`  Ignoring player_state because isMultiplayer=${isMultiplayer}`);
           }
         }
         break;
@@ -5397,6 +5552,9 @@ function playSound(soundName) {
           if (data.bomber === currentPlayerId) {
             // Our bomb got a kill!
             score += 2000;
+            if (gameMode === 'anyplayer') {
+              playerKills++;
+            }
             console.log(`💣 Your bomb eliminated player ${data.victim}! +2000`);
           }
         }
@@ -5533,6 +5691,17 @@ function playSound(soundName) {
       // Initialize all players tracking
       allPlayers = {};
       
+      // Randomize spawn position for battle royale
+      const ship = window.getShip ? window.getShip() : null;
+      const gameCanvas = document.getElementById('asteroidCanvas');
+      if (ship && gameCanvas) {
+        ship.x = Math.random() * gameCanvas.width;
+        ship.y = Math.random() * gameCanvas.height;
+        ship.velocity = { x: 0, y: 0 };
+        ship.angle = Math.random() * Math.PI * 2;
+        console.log(`Spawned at random position: (${Math.round(ship.x)}, ${Math.round(ship.y)})`);
+      }
+      
       // Clear bombs from previous games
       if (window.clearBombs) {
         window.clearBombs();
@@ -5575,6 +5744,8 @@ function playSound(soundName) {
       const ship = window.getShip ? window.getShip() : null;
       const lives = window.getLives ? window.getLives() : 3;
       const score = window.getScore ? window.getScore() : 0;
+      const kills = window.getPlayerKills ? window.getPlayerKills() : 0;
+      const deaths = window.getPlayerDeaths ? window.getPlayerDeaths() : 0;
       
       if (ship) {
         try {
@@ -5588,7 +5759,9 @@ function playSound(soundName) {
               exploded: ship.exploded,
               thrust: ship.thrust,
               lives: lives,
-              score: score
+              score: score,
+              kills: kills,
+              deaths: deaths
             }
           }));
         } catch (e) {
@@ -5768,12 +5941,27 @@ function playSound(soundName) {
     ctx.translate(otherShip.x, otherShip.y);
     ctx.rotate(otherShip.angle);
     
-    // Ship body (triangle) - different color for player 2
-    const shipGameMode = window.getGameMode ? window.getGameMode() : 'coop';
-    const isVsMode = shipGameMode === 'vs';
+    // Get color based on game mode and player ID
+    const gameMode = window.getGameMode ? window.getGameMode() : 'coop';
+    const getPlayerColor = window.getPlayerColor;
     
-    ctx.strokeStyle = isVsMode ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 200, 100, 0.6)';
-    ctx.fillStyle = isVsMode ? 'rgba(255, 107, 107, 0.1)' : 'rgba(255, 200, 100, 0.1)';
+    // Use the color assignment function for consistency
+    let shipColor = { primary: 'rgba(255, 107, 107, 0.6)', fill: 'rgba(255, 107, 107, 0.1)' };
+    if (getPlayerColor && otherPlayerId) {
+      const assignedColor = getPlayerColor(otherPlayerId);
+      shipColor = {
+        primary: assignedColor.primary.replace('0.7)', '0.6)'),
+        fill: assignedColor.fill.replace('0.15)', '0.1)')
+      };
+    } else {
+      // Fallback to mode-based colors
+      shipColor = gameMode === 'vs'
+        ? { primary: 'rgba(255, 107, 107, 0.6)', fill: 'rgba(255, 107, 107, 0.1)' }
+        : { primary: 'rgba(255, 165, 50, 0.6)', fill: 'rgba(255, 165, 50, 0.1)' };
+    }
+    
+    ctx.strokeStyle = shipColor.primary;
+    ctx.fillStyle = shipColor.fill;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(otherShip.size, 0);
@@ -5785,7 +5973,7 @@ function playSound(soundName) {
     
     // Thrust flames
     if (otherShip.thrust) {
-      ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+      ctx.fillStyle = shipColor.primary.replace('0.6)', '0.5)');
       ctx.beginPath();
       ctx.moveTo(-otherShip.size, -otherShip.size / 3);
       ctx.lineTo(-otherShip.size - 10, 0);
@@ -5796,14 +5984,12 @@ function playSound(soundName) {
     
     ctx.restore();
     
-    // Draw player 2 indicator
-    const labelGameMode = window.getGameMode ? window.getGameMode() : 'coop';
-    const isVsModeLabel = labelGameMode === 'vs';
-    
-    ctx.fillStyle = isVsModeLabel ? 'rgba(255, 107, 107, 0.9)' : 'rgba(255, 200, 100, 0.9)';
+    // Draw player label
+    const labelColor = shipColor.primary.replace('0.6)', '0.9)');
+    ctx.fillStyle = labelColor;
     ctx.font = 'bold 12px system-ui';
     ctx.textAlign = 'center';
-    const label = isVsModeLabel ? 'ENEMY' : 'P2';
+    const label = gameMode === 'vs' ? 'ENEMY' : 'P2';
     ctx.fillText(label, otherShip.x, otherShip.y - 25);
   }
   
@@ -5867,6 +6053,8 @@ function playSound(soundName) {
     const getPlayerColor = window.getPlayerColor;
     const getScore = window.getScore ? window.getScore() : 0;
     const getLives = window.getLives ? window.getLives() : 3;
+    const getPlayerKills = window.getPlayerKills ? window.getPlayerKills() : 0;
+    const getPlayerDeaths = window.getPlayerDeaths ? window.getPlayerDeaths() : 0;
     
     if (gameMode === 'anyplayer' && playerListEl && playerListContent) {
       playerListEl.classList.add('active');
@@ -5881,7 +6069,7 @@ function playSound(soundName) {
           <div class="player-icon" style="background: ${myColor.primary};"></div>
           <div class="player-info">
             <div class="player-name">You</div>
-            <div class="player-score">Score: ${getScore} | Lives: ${getLives}</div>
+            <div class="player-score">Kills: ${getPlayerKills} | Deaths: ${getPlayerDeaths}</div>
           </div>
         </div>
       `;
@@ -5895,7 +6083,7 @@ function playSound(soundName) {
             <div class="player-icon" style="background: ${color.primary};"></div>
             <div class="player-info">
               <div class="player-name">${shortId}</div>
-              <div class="player-score">Score: ${player.score || 0} | Lives: ${player.lives || 3}</div>
+              <div class="player-score">Kills: ${player.kills || 0} | Deaths: ${player.deaths || 0}</div>
             </div>
           </div>
         `;
