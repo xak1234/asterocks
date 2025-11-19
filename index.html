@@ -1,0 +1,4807 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3I / ATLAS Brightness Tracker — Live</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #08101a;
+      color: #e6eef8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+    }
+    #asteroidCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+      display: none; /* Hide the Atlas tracker */
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(15, 27, 42, 0.7), rgba(7, 16, 35, 0.7));
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .header-left h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .header-left .sub {
+      color: #93aecd;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .header-left .sub code {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .header-right > div {
+      color: #93aecd;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .status {
+      color: #7ec8ff;
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+    }
+
+    .magnitude-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(126, 200, 255, 0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(126, 200, 255, 0.15);
+    }
+    .big-mag {
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      animation: pulseLuminosity 3s ease-in-out infinite;
+    }
+    @keyframes pulseLuminosity {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+      }
+    }
+    .mag-source {
+      font-size: 13px;
+      color: #9fb3d2;
+      margin-top: 8px;
+      text-align: center;
+    }
+    .mag-status {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mag-status.normal {
+      background: rgba(126, 240, 163, 0.2);
+      color: #7ef0a3;
+    }
+    .mag-status.abnormal {
+      background: rgba(255, 155, 155, 0.2);
+      color: #ff9b9b;
+    }
+    .mag-bar {
+      width: 100%;
+      height: 8px;
+      background: #021827;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .mag-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      transition: width 0.6s linear;
+      background: linear-gradient(90deg, #ffd166, #ff6b6b);
+    }
+    .mag-scale {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      color: #9fb3d2;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    .distance-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(126, 200, 255, 0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(126, 200, 255, 0.15);
+      margin-top: 12px;
+    }
+    .distance-label {
+      font-size: 11px;
+      color: #9fb3d2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .distance-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffd166;
+      margin-top: 4px;
+    }
+    .acceleration-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ff6b6b;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-height: 16px;
+    }
+    .acceleration-details {
+      font-size: 9px;
+      font-weight: 400;
+      color: #9fb3d2;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-top: 2px;
+      text-transform: lowercase;
+    }
+
+    .starmap-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .contact-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(126, 200, 255, 0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(126, 200, 255, 0.15);
+    }
+    .days-label {
+      font-size: 11px;
+      color: #9fb3d2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .days-to-contact {
+      font-size: 32px;
+      font-weight: 700;
+      color: #7ef0a3;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .contact-date {
+      font-size: 14px;
+      font-weight: 500;
+      color: #9fb3d2;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .contact-canvas-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding: 0;
+    }
+    .contact-canvas-container canvas {
+      max-width: 100%;
+      height: auto;
+    }
+    .observations {
+      display: flex;
+      flex-direction: column;
+    }
+    .observations h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+    .observations .sub {
+      color: #9fb3d2;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    th {
+      font-weight: 600;
+      color: #9fb3d2;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .history-table {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 11px;
+      color: #86a6c5;
+    }
+    footer code {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Joystick Control Panel */
+    #controlPanel {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      display: none;
+      z-index: 1000;
+      background: rgba(15, 27, 42, 0.95);
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+      border: 2px solid rgba(126, 200, 255, 0.5);
+    }
+
+    #controlPanel.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      animation: panelFadeIn 0.3s ease-out;
+    }
+
+    @keyframes panelFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .joystick-container {
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-template-rows: repeat(3, 50px);
+      gap: 5px;
+    }
+
+    .direction-btn {
+      background: rgba(126, 200, 255, 0.3);
+      border: 2px solid rgba(126, 200, 255, 0.6);
+      border-radius: 8px;
+      color: #7ec8ff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .direction-btn:active {
+      background: rgba(126, 200, 255, 0.5);
+      transform: scale(0.95);
+    }
+
+    .direction-btn.up { grid-column: 2; grid-row: 1; }
+    .direction-btn.left { grid-column: 1; grid-row: 2; }
+    .direction-btn.right { grid-column: 3; grid-row: 2; }
+    .direction-btn.down { grid-column: 2; grid-row: 3; }
+
+    .fire-btn {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(145deg, #ff6b6b, #ff4444);
+      border: 3px solid rgba(255, 107, 107, 0.8);
+      border-radius: 50%;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(255, 107, 107, 0.5);
+      transition: all 0.15s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .fire-btn:active {
+      background: linear-gradient(145deg, #ff4444, #ff2222);
+      transform: scale(0.95);
+      box-shadow: 0 1px 3px rgba(255, 107, 107, 0.7);
+    }
+
+    .hyperspace-btn {
+      width: 70px;
+      height: 40px;
+      background: linear-gradient(145deg, #7ec8ff, #5ea8df);
+      border: 3px solid rgba(126, 200, 255, 0.8);
+      border-radius: 8px;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(126, 200, 255, 0.5);
+      transition: all 0.15s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .hyperspace-btn:active {
+      background: linear-gradient(145deg, #5ea8df, #4e98cf);
+      transform: scale(0.95);
+      box-shadow: 0 1px 3px rgba(126, 200, 255, 0.7);
+    }
+
+    .close-panel-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 15px;
+      height: 15px;
+      background: rgba(255, 107, 107, 0.3);
+      border: 1px solid rgba(255, 107, 107, 0.5);
+      border-radius: 50%;
+      color: #ff9b9b;
+      font-size: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .close-panel-btn:active {
+      background: rgba(255, 107, 107, 0.5);
+      transform: scale(0.95);
+    }
+
+    .drag-handle {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      width: 20px;
+      height: 20px;
+      background: rgba(126, 200, 255, 0.3);
+      border: 1px solid rgba(126, 200, 255, 0.5);
+      border-radius: 4px;
+      cursor: move;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .drag-handle::before,
+    .drag-handle::after {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: rgba(126, 200, 255, 0.6);
+      border-radius: 1px;
+    }
+
+    .drag-handle:active {
+      background: rgba(126, 200, 255, 0.5);
+      cursor: grabbing;
+    }
+
+    @media (max-width: 720px) {
+      .content {
+        grid-template-columns: 1fr;
+      }
+      body {
+        padding: 16px;
+      }
+      
+      /* Optimize joystick for mobile */
+      #controlPanel {
+        bottom: 20px;
+        right: 20px;
+        padding: 20px;
+        border-radius: 16px;
+      }
+      
+      .joystick-container {
+        grid-template-columns: repeat(3, 60px);
+        grid-template-rows: repeat(3, 60px);
+        gap: 8px;
+      }
+      
+      .direction-btn {
+        font-size: 24px;
+        border-radius: 8px;
+        border: 3px solid rgba(126, 200, 255, 0.6);
+      }
+      
+      .fire-btn {
+        width: 90px;
+        height: 90px;
+        font-size: 16px;
+        border: 4px solid rgba(255, 107, 107, 0.8);
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+      }
+      
+      .hyperspace-btn {
+        width: 90px;
+        height: 50px;
+        font-size: 13px;
+        border: 3px solid rgba(126, 200, 255, 0.8);
+      }
+      
+      .close-panel-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+        top: 8px;
+        right: 8px;
+        border: 2px solid rgba(255, 107, 107, 0.5);
+      }
+      
+      .drag-handle {
+        width: 28px;
+        height: 28px;
+        top: 8px;
+        left: 8px;
+        border: 2px solid rgba(126, 200, 255, 0.5);
+        border-radius: 6px;
+      }
+      
+      .drag-handle::before,
+      .drag-handle::after {
+        width: 16px;
+        height: 3px;
+      }
+    }
+
+    /* ===== SCREEN SAVER STYLES ===== */
+    #screenSaverOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #08101a 0%, #0a1428 50%, #08101a 100%);
+      display: none;
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    #screenSaverOverlay.active {
+      display: flex;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .screensaver-content {
+      text-align: center;
+      color: #e6eef8;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial;
+      z-index: 2001;
+      position: relative;
+    }
+
+    .screensaver-logo {
+      font-size: 64px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: 3px;
+      animation: screenSaverPulse 3s ease-in-out infinite;
+      text-shadow: 0 0 20px rgba(126, 240, 163, 0.5);
+    }
+
+    .screensaver-subtitle {
+      font-size: 20px;
+      color: #93aecd;
+      margin-bottom: 40px;
+      letter-spacing: 1px;
+      font-weight: 300;
+    }
+
+    .screensaver-status {
+      font-size: 16px;
+      color: #7ec8ff;
+      margin-bottom: 30px;
+      min-height: 24px;
+      font-weight: 500;
+    }
+
+    .screensaver-hint {
+      font-size: 13px;
+      color: #86a6c5;
+      margin-top: 80px;
+      animation: screenSaverFade 2s ease-in-out infinite;
+    }
+
+    /* ===== RADAR SYSTEM ===== */
+    #radarContainer {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 200px;
+      height: 200px;
+      background: rgba(15, 27, 42, 0.9);
+      border-radius: 50%;
+      border: 3px solid rgba(126, 200, 255, 0.5);
+      box-shadow: 0 0 20px rgba(126, 200, 255, 0.3);
+      z-index: 1000;
+    }
+
+    #radarCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    .radar-label {
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(126, 200, 255, 0.8);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ===== CONTROL BUTTONS ===== */
+    .control-buttons {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    .control-btn {
+      width: 50px;
+      height: 50px;
+      background: rgba(15, 27, 42, 0.9);
+      border: 2px solid rgba(126, 200, 255, 0.5);
+      border-radius: 8px;
+      color: rgba(126, 200, 255, 0.9);
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      user-select: none;
+    }
+
+    .control-btn:hover {
+      background: rgba(15, 27, 42, 1);
+      border-color: rgba(126, 240, 163, 0.8);
+      color: rgba(126, 240, 163, 1);
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(126, 200, 255, 0.3);
+    }
+
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+
+    .control-btn.active {
+      background: rgba(126, 200, 255, 0.2);
+      border-color: rgba(126, 240, 163, 0.8);
+      color: rgba(126, 240, 163, 1);
+    }
+
+    .control-btn.muted {
+      background: rgba(255, 107, 107, 0.2);
+      border-color: rgba(255, 107, 107, 0.5);
+      color: rgba(255, 107, 107, 0.8);
+    }
+
+    .pause-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 16, 26, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1500;
+      backdrop-filter: blur(5px);
+    }
+
+    .pause-overlay.active {
+      display: flex;
+    }
+
+    .pause-content {
+      text-align: center;
+      color: #e6eef8;
+    }
+
+    .pause-title {
+      font-size: 64px;
+      font-weight: 800;
+      color: rgba(126, 240, 163, 0.9);
+      text-shadow: 0 0 20px rgba(126, 240, 163, 0.5);
+      margin-bottom: 20px;
+      animation: pausePulse 2s ease-in-out infinite;
+    }
+
+    .pause-subtitle {
+      font-size: 20px;
+      color: #93aecd;
+      letter-spacing: 1px;
+    }
+
+    @keyframes pausePulse {
+      0%, 100% {
+        opacity: 0.7;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* ===== LOBBY SYSTEM STYLES ===== */
+    .lobby-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 16, 26, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2500;
+      backdrop-filter: blur(10px);
+    }
+
+    .lobby-overlay.active {
+      display: flex;
+    }
+
+    .lobby-content {
+      text-align: center;
+      color: #e6eef8;
+      background: rgba(15, 27, 42, 0.9);
+      border-radius: 16px;
+      padding: 40px 60px;
+      border: 2px solid rgba(126, 200, 255, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+      min-width: 400px;
+    }
+
+    .lobby-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: rgba(126, 240, 163, 0.9);
+      text-shadow: 0 0 20px rgba(126, 240, 163, 0.5);
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+    }
+
+    .lobby-status {
+      font-size: 16px;
+      color: #93aecd;
+      margin-bottom: 30px;
+      min-height: 24px;
+    }
+
+    .lobby-options {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .lobby-btn {
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid rgba(126, 200, 255, 0.5);
+      border-radius: 8px;
+      background: rgba(15, 27, 42, 0.8);
+      color: rgba(126, 200, 255, 0.9);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .lobby-btn:hover:not(:disabled) {
+      background: rgba(126, 200, 255, 0.2);
+      border-color: rgba(126, 240, 163, 0.8);
+      color: rgba(126, 240, 163, 1);
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(126, 200, 255, 0.3);
+    }
+
+    .lobby-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .lobby-btn-primary {
+      background: rgba(126, 240, 163, 0.2);
+      border-color: rgba(126, 240, 163, 0.6);
+      color: rgba(126, 240, 163, 1);
+    }
+
+    .lobby-btn-primary:hover:not(:disabled) {
+      background: rgba(126, 240, 163, 0.3);
+      box-shadow: 0 4px 12px rgba(126, 240, 163, 0.4);
+    }
+
+    .lobby-btn-vs {
+      background: rgba(255, 107, 107, 0.2);
+      border-color: rgba(255, 107, 107, 0.6);
+      color: rgba(255, 107, 107, 1);
+    }
+
+    .lobby-btn-vs:hover:not(:disabled) {
+      background: rgba(255, 107, 107, 0.3);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+    }
+
+    .lobby-hint {
+      font-size: 13px;
+      color: #86a6c5;
+      font-style: italic;
+    }
+
+    /* ===== JOIN REQUEST POPUP ===== */
+    .join-request-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 16, 26, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+      backdrop-filter: blur(8px);
+    }
+
+    .join-request-overlay.active {
+      display: flex;
+      animation: popupFadeIn 0.3s ease-out;
+    }
+
+    @keyframes popupFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .join-request-content {
+      text-align: center;
+      color: #e6eef8;
+      background: linear-gradient(145deg, rgba(255, 200, 100, 0.15), rgba(255, 160, 80, 0.1));
+      border-radius: 16px;
+      padding: 40px 60px;
+      border: 3px solid rgba(255, 200, 100, 0.6);
+      box-shadow: 0 8px 32px rgba(255, 200, 100, 0.3);
+      min-width: 400px;
+      animation: pulseBorder 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseBorder {
+      0%, 100% {
+        border-color: rgba(255, 200, 100, 0.6);
+        box-shadow: 0 8px 32px rgba(255, 200, 100, 0.3);
+      }
+      50% {
+        border-color: rgba(255, 200, 100, 0.9);
+        box-shadow: 0 8px 32px rgba(255, 200, 100, 0.5);
+      }
+    }
+
+    .join-request-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: rgba(255, 200, 100, 1);
+      text-shadow: 0 0 20px rgba(255, 200, 100, 0.6);
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+      animation: textPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes textPulse {
+      0%, 100% {
+        opacity: 0.9;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    .join-request-message {
+      font-size: 18px;
+      color: #e6eef8;
+      margin-bottom: 15px;
+      font-weight: 500;
+    }
+
+    .join-request-mode {
+      font-size: 16px;
+      color: #ffd166;
+      margin-bottom: 25px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .join-request-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .join-request-btn {
+      padding: 15px 40px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border: none;
+    }
+
+    .join-request-accept {
+      background: linear-gradient(145deg, #7ef0a3, #5ed18a);
+      color: #0a1428;
+      box-shadow: 0 4px 12px rgba(126, 240, 163, 0.4);
+    }
+
+    .join-request-accept:hover {
+      background: linear-gradient(145deg, #8ff5b0, #6ed998);
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(126, 240, 163, 0.6);
+    }
+
+    .join-request-decline {
+      background: linear-gradient(145deg, #ff9b9b, #ff6b6b);
+      color: #0a1428;
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+    }
+
+    .join-request-decline:hover {
+      background: linear-gradient(145deg, #ffb0b0, #ff8080);
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(255, 107, 107, 0.6);
+    }
+
+    @keyframes screenSaverPulse {
+      0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes screenSaverFade {
+      0%, 100% {
+        opacity: 0.3;
+      }
+      50% {
+        opacity: 0.9;
+      }
+    }
+
+    .screensaver-particles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 2000;
+    }
+
+    .screensaver-particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(126, 240, 163, 0.7);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(126, 240, 163, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="asteroidCanvas"></canvas>
+  
+  <!-- Joystick Control Panel (DISABLED) -->
+  <div id="controlPanel" style="display: none !important;">
+    <div class="drag-handle" id="dragHandle"></div>
+    <div class="close-panel-btn" id="closePanelBtn">×</div>
+    <div class="joystick-container">
+      <button class="direction-btn up" id="upBtn">▲</button>
+      <button class="direction-btn left" id="leftBtn">◄</button>
+      <button class="direction-btn right" id="rightBtn">►</button>
+      <button class="direction-btn down" id="downBtn">▼</button>
+    </div>
+    <button class="fire-btn" id="fireBtn">FIRE</button>
+    <button class="hyperspace-btn" id="hyperspaceBtn">HYPER</button>
+  </div>
+  
+  <!-- Radar System -->
+  <div id="radarContainer">
+    <canvas id="radarCanvas" width="200" height="200"></canvas>
+    <div class="radar-label">RADAR</div>
+  </div>
+  
+  <!-- Control Buttons -->
+  <div class="control-buttons">
+    <button class="control-btn" id="soundBtn" title="Toggle Sound Effects">🔊</button>
+    <button class="control-btn" id="pauseBtn" title="Pause Game">⏸</button>
+  </div>
+  
+  <!-- Pause Overlay -->
+  <div class="pause-overlay" id="pauseOverlay">
+    <div class="pause-content">
+      <div class="pause-title">PAUSED</div>
+      <div class="pause-subtitle">Press P or click Pause button to resume</div>
+    </div>
+  </div>
+  
+  <!-- 2-Player Co-op Lobby -->
+  <div class="lobby-overlay" id="lobbyOverlay">
+    <div class="lobby-content">
+      <div class="lobby-title">MULTIPLAYER LOBBY</div>
+      <div class="lobby-status" id="lobbyStatus">Connecting...</div>
+      <div class="lobby-options" id="lobbyOptions">
+        <button class="lobby-btn" id="soloPlayBtn">Play Solo</button>
+        <button class="lobby-btn lobby-btn-primary" id="coopPlayBtn" disabled>Co-op Mode</button>
+        <button class="lobby-btn lobby-btn-vs" id="vsPlayBtn" disabled>VS Mode (PvP)</button>
+      </div>
+      <div class="lobby-hint">Co-op: Team up against asteroids | VS: Battle each other!</div>
+    </div>
+  </div>
+  
+  <!-- Join Request Popup -->
+  <div class="join-request-overlay" id="joinRequestOverlay">
+    <div class="join-request-content">
+      <div class="join-request-title">INCOMING TRANSMISSION</div>
+      <div class="join-request-message" id="joinRequestMessage">Another player wants to join your game!</div>
+      <div class="join-request-mode" id="joinRequestMode"></div>
+      <div class="join-request-buttons">
+        <button class="join-request-btn join-request-accept" id="acceptJoinBtn">Accept</button>
+        <button class="join-request-btn join-request-decline" id="declineJoinBtn">Decline</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Screen Saver Overlay -->
+  <div id="screenSaverOverlay">
+    <div class="screensaver-particles" id="screensaverParticles"></div>
+    <div class="screensaver-content">
+      <div class="screensaver-logo">ATLAS</div>
+      <div class="screensaver-subtitle">Brightness Tracker</div>
+      <div class="screensaver-status" id="screensaverStatus">Monitoring...</div>
+      <div class="screensaver-hint">Move mouse or press any key to resume</div>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="card">
+      <header>
+        <div class="header-left">
+          <h1>3I / ATLAS Unknown - Tracking — Live</h1>
+          <div class="sub">Automated — data from <b>TheSkyLive</b> and <b>COBS</b>. Server: <code>https://atlas-c4gn.onrender.com</code></div>
+        </div>
+        <div class="header-right">
+          <div id="lastUpdated">Last update: —</div>
+          <div id="status" class="status">Status: connecting…</div>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="magnitude-card">
+          <div class="big-mag" id="currentMag">—</div>
+          <div class="mag-source" id="magSource">—</div>
+          <div class="mag-status" id="magStatus">—</div>
+          <div class="mag-bar">
+            <i id="magBar" style="width: 0%"></i>
+          </div>
+          <div class="mag-scale">
+            <div>Bright (0)</div>
+            <div>Faint (18+)</div>
+          </div>
+          <div class="distance-card">
+            <div class="distance-label">Distance to Earth</div>
+            <div class="distance-value" id="distanceValue">—</div>
+            <div class="distance-label" style="margin-top: 4px;">km</div>
+            <div class="acceleration-status" id="accelerationStatus"></div>
+            <div class="acceleration-details" id="accelerationDetails"></div>
+          </div>
+        </div>
+
+      <div class="starmap-section">
+        <div class="contact-section">
+          <div class="days-label">Days to Contact</div>
+          <div class="days-to-contact" id="daysToContact">—</div>
+          <div class="contact-date" id="contactDate">—</div>
+          <div class="contact-canvas-container">
+            <canvas id="contactCanvas" width="220" height="100"></canvas>
+          </div>
+        </div>
+        <div class="contact-section">
+          <div class="days-label">Distance Tracking</div>
+          <div class="contact-canvas-container">
+            <canvas id="trackingCanvas" width="220" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+        <div class="observations">
+          <h3>Observations (latest first)</h3>
+          <div class="sub">Auto-refresh: every 6 hours</div>
+          <div class="history-table">
+            <table id="historyTable">
+              <thead>
+                <tr>
+                  <th>Time (UTC)</th>
+                  <th>Source</th>
+                  <th>Mag</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        Franks-Apps.com Node server: <code>https://atlas-c4gn.onrender.com</code>. Contact for customizations.
+      </footer>
+    </div>
+  </div>
+
+<script>
+// Live client for atlas-c4gn.onrender.com
+const API_ROOT = 'https://atlas-c4gn.onrender.com';
+const CLIENT_POLL_SECONDS = 21600; // 6 hours
+const DISTANCE_POLL_SECONDS = 60; // Check real distance every 60 seconds
+const DISTANCE_DISPLAY_INTERVAL = 1000; // Update display every 1 second (interpolated)
+const MAX_HISTORY = 100;
+let pollTimer = null;
+let distanceTimer = null;
+let distanceDisplayTimer = null;
+let contactAnimationFrame = null;
+let history = [];
+
+// Distance tracking for smooth interpolation
+let distanceState = {
+  lastRealDistance: null,
+  lastRealDistanceTime: null,
+  currentDisplayDistance: null,
+  velocityKmPerSecond: null, // Will be calculated from actual distance measurements
+  trajectoryPoints: [], // Array of {time, distance} for graphing
+  velocityHistory: [] // Array of {time, velocity} for acceleration detection
+};
+
+// Animation state for contact visualization dots
+let contactAnimationState = {
+  animationTime: 0 // Tracks animation progress (0 to 1, loops)
+};
+
+function formatUTC(d) {
+  return new Date(d).toISOString().replace('T', ' ').replace('Z', ' UTC');
+}
+
+async function safeFetchJson(url) {
+  try {
+    const resp = await fetch(url, { cache: 'no-store' });
+    const ct = resp.headers.get('content-type') || '';
+    if (!resp.ok) {
+      const text = await resp.text();
+      return { ok: false, status: resp.status, text };
+    }
+    if (ct.includes('application/json') || ct.includes('text/json')) {
+      try {
+        const json = await resp.json();
+        return { ok: true, json };
+      } catch (e) {
+        const text = await resp.text();
+        return { ok: false, error: 'json', text };
+      }
+    }
+    const text = await resp.text();
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+function updateUIFromEntry(entry) {
+  const magEl = document.getElementById('currentMag');
+  const srcEl = document.getElementById('magSource');
+  const statusEl = document.getElementById('magStatus');
+  const bar = document.getElementById('magBar');
+
+  // Validate and sanitize inputs
+  const mag = typeof entry.mag === 'number' && isFinite(entry.mag) ? entry.mag : 0;
+  const src = String(entry.src || 'unknown');
+  const note = entry.note ? String(entry.note) : '';
+  
+  magEl.textContent = mag.toFixed(2);
+  srcEl.textContent = src + (note ? ' — ' + note : '');
+
+  // Display magnitude status
+  if (entry.magStatus) {
+    statusEl.textContent = entry.magStatus.toUpperCase();
+    statusEl.className = 'mag-status ' + entry.magStatus;
+  } else {
+    statusEl.textContent = '—';
+    statusEl.className = 'mag-status';
+  }
+
+  const clamped = Math.max(0, Math.min(18, entry.mag));
+  const pct = Math.round((18 - clamped) / 18 * 100);
+  bar.style.width = pct + '%';
+}
+
+function drawContactVisualization(distanceKm) {
+  const canvas = document.getElementById('contactCanvas');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Calculate days to contact based on ACTUAL velocity from distance tracking
+  const SECONDS_PER_DAY = 86400;
+  // Only calculate if we have a valid velocity (calculated from actual measurements)
+  // Use Math.abs to ensure positive velocity (approaching Earth)
+  const actualVelocity = distanceState.velocityKmPerSecond !== null && distanceState.velocityKmPerSecond > 0 
+    ? Math.abs(distanceState.velocityKmPerSecond) 
+    : null;
+  
+  // Update the days display and contact date
+  const daysEl = document.getElementById('daysToContact');
+  const dateEl = document.getElementById('contactDate');
+  if (actualVelocity && distanceKm && distanceKm > 0) {
+    const totalSeconds = distanceKm / actualVelocity;
+    const daysToContact = totalSeconds / SECONDS_PER_DAY;
+    
+    // Debug logging
+    console.log(`Days calculation: distance=${distanceKm.toLocaleString()} km, velocity=${actualVelocity.toFixed(2)} km/s, days=${daysToContact.toFixed(1)}`);
+    
+    if (daysToContact > 0 && isFinite(daysToContact)) {
+      // Calculate the contact date
+      const now = new Date();
+      const contactDate = new Date(now.getTime() + daysToContact * SECONDS_PER_DAY * 1000);
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+      const month = monthNames[contactDate.getMonth()];
+      const day = contactDate.getDate();
+      const year = contactDate.getFullYear();
+      
+      // Calculate days between today and contact date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const contact = new Date(contactDate);
+      contact.setHours(0, 0, 0, 0);
+      const daysDifference = Math.round((contact - today) / (1000 * 60 * 60 * 24));
+      
+      daysEl.textContent = daysDifference.toLocaleString();
+      dateEl.textContent = `${month} ${day}, ${year}`;
+    } else {
+      daysEl.textContent = '—';
+      dateEl.textContent = '—';
+    }
+  } else {
+    daysEl.textContent = '—';
+    dateEl.textContent = '—';
+    if (!actualVelocity) {
+      console.log('Days calculation: No valid velocity available');
+    }
+  }
+  
+  // Draw visualization
+  const centerY = canvas.height / 2;
+  
+  // Draw Earth (green circle on the right)
+  ctx.fillStyle = '#7ef0a3';
+  ctx.beginPath();
+  ctx.arc(180, centerY, 18, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw Earth outline
+  ctx.strokeStyle = '#7ef0a3';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Draw simple Earth details (continents)
+  ctx.fillStyle = '#05a84a';
+  ctx.beginPath();
+  ctx.arc(185, centerY - 5, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(175, centerY + 6, 3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw spaceship (red triangle pointing right toward Earth)
+  const shipX = 30;
+  ctx.fillStyle = '#ff6b6b';
+  ctx.beginPath();
+  ctx.moveTo(shipX + 12, centerY); // point facing right
+  ctx.lineTo(shipX - 8, centerY - 8);
+  ctx.lineTo(shipX - 8, centerY + 8);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw line from ship to Earth
+  ctx.strokeStyle = 'rgba(255, 107, 107, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(shipX + 12, centerY);
+  ctx.lineTo(180 - 18, centerY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Draw animated dots moving from ship to Earth
+  const earthX = 180 - 18;
+  const shipEndX = shipX + 12;
+  const pathLength = earthX - shipEndX;
+  
+  // Draw multiple dots at different positions along the path
+  const numDots = 3;
+  const dotSpacing = 0.25; // Spacing between dots (as fraction of path)
+  
+  ctx.fillStyle = '#ff6b6b';
+  for (let i = 0; i < numDots; i++) {
+    // Calculate dot position with animation offset
+    const baseProgress = (contactAnimationState.animationTime + i * dotSpacing) % 1;
+    const dotX = shipEndX + baseProgress * pathLength;
+    const dotY = centerY;
+    
+    // Only draw if dot is between ship and Earth
+    if (dotX >= shipEndX && dotX <= earthX) {
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  // Start animation loop if not already running
+  startContactAnimation();
+}
+
+// Animation function for contact visualization dots
+function animateContact() {
+  contactAnimationState.animationTime += 0.008; // Adjust speed (0.01 = slower, 0.05 = faster)
+  if (contactAnimationState.animationTime >= 1) {
+    contactAnimationState.animationTime = 0; // Loop back
+  }
+  
+  // Redraw the visualization
+  if (distanceState.currentDisplayDistance !== null) {
+    drawContactVisualization(distanceState.currentDisplayDistance);
+  }
+  
+  contactAnimationFrame = requestAnimationFrame(animateContact);
+}
+
+function startContactAnimation() {
+  if (contactAnimationFrame === null) {
+    contactAnimationFrame = requestAnimationFrame(animateContact);
+  }
+}
+
+function drawTrackingVisualization(distanceKm) {
+  const canvas = document.getElementById('trackingCanvas');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  
+  // Background
+  ctx.fillStyle = '#08101a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw orbital path (arc from comet to Earth)
+  ctx.strokeStyle = 'rgba(126, 200, 255, 0.2)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 100, -Math.PI * 0.3, Math.PI * 0.3, false);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Calculate progress toward Earth (0 = start at 310M km, 1 = Earth at 0 km)
+  const startDistance = 310000000; // ~310M km
+  const endDistance = 269000000;   // ~269M km (closest approach)
+  const progress = (startDistance - distanceKm) / (startDistance - endDistance);
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  
+  // Calculate comet position on the arc
+  const angle = -Math.PI * 0.3 + (Math.PI * 0.6) * clampedProgress;
+  const cometRadius = 100 - clampedProgress * 70; // Moves closer to Earth
+  const cometX = centerX + Math.cos(angle) * cometRadius;
+  const cometY = centerY + Math.sin(angle) * cometRadius;
+  
+  // Draw Sun (yellow circle in upper left)
+  ctx.fillStyle = '#FFB81C';
+  ctx.shadowColor = 'rgba(255, 184, 28, 0.5)';
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.arc(centerX - 120, centerY - 80, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = '#9fb3d2';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Sun', centerX - 120, centerY - 60);
+  
+  // Draw Earth (blue circle on the right)
+  ctx.fillStyle = '#4A9EE8';
+  ctx.shadowColor = 'rgba(74, 158, 232, 0.5)';
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(centerX + 100, centerY, 12, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw Earth details (continents)
+  ctx.fillStyle = '#2E7D3F';
+  ctx.beginPath();
+  ctx.arc(centerX + 102, centerY - 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(centerX + 96, centerY + 3, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  
+  ctx.fillStyle = '#9fb3d2';
+  ctx.textAlign = 'center';
+  ctx.fillText('Earth', centerX + 100, centerY + 28);
+  
+  // Draw comet (white/cyan glowing sphere with tail)
+  ctx.fillStyle = '#7ef0a3';
+  ctx.shadowColor = 'rgba(126, 240, 163, 0.6)';
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(cometX, cometY, 8, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw comet tail (pointing away from sun)
+  const tailAngle = Math.atan2(cometY - (centerY - 80), cometX - (centerX - 120));
+  const tailStartX = cometX + Math.cos(tailAngle) * 8;
+  const tailStartY = cometY + Math.sin(tailAngle) * 8;
+  const tailEndX = cometX + Math.cos(tailAngle) * 35;
+  const tailEndY = cometY + Math.sin(tailAngle) * 35;
+  
+  ctx.strokeStyle = 'rgba(126, 240, 163, 0.4)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(tailStartX, tailStartY);
+  ctx.lineTo(tailEndX, tailEndY);
+  ctx.stroke();
+  ctx.shadowColor = 'transparent';
+  
+  // Draw dashed line from comet to Earth
+  ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(cometX, cometY);
+  ctx.lineTo(centerX + 100, centerY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Draw distance label
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(distanceKm.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' km', centerX, 30);
+  
+  // Draw "sky movement" label
+  ctx.fillStyle = '#9fb3d2';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('orbital trajectory', centerX, canvas.height - 15);
+}
+
+function renderHistoryTable() {
+  const tbody = document.querySelector('#historyTable tbody');
+  tbody.innerHTML = '';
+  for (let row of history.slice(0, MAX_HISTORY)) {
+    const tr = document.createElement('tr');
+    
+    // Time cell
+    const tdTime = document.createElement('td');
+    tdTime.textContent = formatUTC(row.time);
+    tr.appendChild(tdTime);
+    
+    // Source cell
+    const tdSrc = document.createElement('td');
+    tdSrc.textContent = String(row.src || '');
+    tr.appendChild(tdSrc);
+    
+    // Magnitude cell
+    const tdMag = document.createElement('td');
+    tdMag.textContent = row.mag.toFixed(2);
+    tr.appendChild(tdMag);
+    
+    // Note cell
+    const tdNote = document.createElement('td');
+    tdNote.textContent = String(row.note || '');
+    tr.appendChild(tdNote);
+    
+    tbody.appendChild(tr);
+  }
+}
+
+async function fetchDistance() {
+  try {
+    const res = await safeFetchJson(API_ROOT + '/api/distance');
+    if (res.ok && res.json && res.json.distanceKm !== null) {
+      const newDistance = res.json.distanceKm;
+      const now = Date.now();
+      
+      // Add to trajectory points for graphing
+      distanceState.trajectoryPoints.push({ time: now, distance: newDistance });
+      
+      // Keep only last 2 hours of data (120 minutes)
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      distanceState.trajectoryPoints = distanceState.trajectoryPoints.filter(
+        point => now - point.time < twoHoursMs
+      );
+      
+      // Calculate velocity using trajectory points for better accuracy
+      // Use a sliding window approach with multiple time points for noise reduction
+      const MIN_TIME_FOR_VELOCITY_SECONDS = 180; // 3 minutes minimum (lowered for more frequent updates)
+      const OPTIMAL_TIME_WINDOW = 600; // 10 minutes optimal window
+      
+      if (distanceState.trajectoryPoints.length >= 2) {
+        const points = distanceState.trajectoryPoints;
+        const newestPoint = points[points.length - 1];
+        
+        // Find the best point pair for velocity calculation
+        // Prefer points that are close to OPTIMAL_TIME_WINDOW apart for accuracy
+        let bestOldPoint = null;
+        let bestTimeDiff = 0;
+        let bestDiffFromOptimal = Infinity;
+        
+        for (let i = points.length - 2; i >= 0; i--) {
+          const timeDiffSeconds = (newestPoint.time - points[i].time) / 1000;
+          
+          // Accept points within [MIN_TIME_FOR_VELOCITY, 2*OPTIMAL_TIME_WINDOW]
+          if (timeDiffSeconds >= MIN_TIME_FOR_VELOCITY_SECONDS && timeDiffSeconds <= 2 * OPTIMAL_TIME_WINDOW) {
+            const diffFromOptimal = Math.abs(timeDiffSeconds - OPTIMAL_TIME_WINDOW);
+            if (diffFromOptimal < bestDiffFromOptimal) {
+              bestOldPoint = points[i];
+              bestTimeDiff = timeDiffSeconds;
+              bestDiffFromOptimal = diffFromOptimal;
+            }
+          }
+        }
+        
+        // If we have a good point pair, calculate velocity
+        if (bestOldPoint) {
+          const distanceDiffKm = bestOldPoint.distance - newestPoint.distance; // Positive if approaching
+          
+          if (bestTimeDiff > 0 && Math.abs(distanceDiffKm) > 0) {
+            // Calculate velocity (km/s) - use absolute value to ensure positive
+            const calculatedVelocity = Math.abs(distanceDiffKm) / bestTimeDiff;
+            
+            // More lenient range: comets can be 0.5-250 km/s depending on orbital characteristics
+            // Measurement noise affects small values, so noise filter is adaptive
+            const minVelocity = Math.max(0.1, 5 / bestTimeDiff); // Noise floor depends on measurement precision over time window
+            const maxVelocity = 250;
+            
+            if (calculatedVelocity >= minVelocity && calculatedVelocity <= maxVelocity) {
+              // Track velocity history for acceleration detection
+              distanceState.velocityHistory.push({ time: now, velocity: calculatedVelocity });
+              
+              // Keep only last 30 minutes of velocity history for better trend detection
+              const thirtyMinutesMs = 30 * 60 * 1000;
+              distanceState.velocityHistory = distanceState.velocityHistory.filter(
+                entry => now - entry.time < thirtyMinutesMs
+              );
+              
+              distanceState.velocityKmPerSecond = calculatedVelocity;
+              console.log(`Distance updated: ${newDistance.toLocaleString()} km | Velocity: ${distanceState.velocityKmPerSecond.toFixed(2)} km/s | Time window: ${(bestTimeDiff / 60).toFixed(1)} min (accuracy: optimal)`);
+              
+              // Update acceleration status
+              updateAccelerationStatus();
+            } else {
+              console.log(`Velocity calculation filtered: ${calculatedVelocity.toFixed(2)} km/s (valid range: ${minVelocity.toFixed(2)}-${maxVelocity} km/s)`);
+            }
+          }
+        } else if (distanceState.lastRealDistance !== null && distanceState.lastRealDistanceTime !== null) {
+          // Fallback: use last two readings if we don't have enough history yet
+          const timeDiffSeconds = (now - distanceState.lastRealDistanceTime) / 1000;
+          const distanceDiffKm = distanceState.lastRealDistance - newDistance;
+          
+          if (timeDiffSeconds >= MIN_TIME_FOR_VELOCITY_SECONDS && Math.abs(distanceDiffKm) > 0) {
+            const calculatedVelocity = Math.abs(distanceDiffKm) / timeDiffSeconds;
+            const minVelocity = Math.max(0.1, 5 / timeDiffSeconds);
+            const maxVelocity = 250;
+            
+            if (calculatedVelocity >= minVelocity && calculatedVelocity <= maxVelocity) {
+              // Track velocity history for acceleration detection
+              distanceState.velocityHistory.push({ time: now, velocity: calculatedVelocity });
+              
+              // Keep only last 30 minutes of velocity history
+              const thirtyMinutesMs = 30 * 60 * 1000;
+              distanceState.velocityHistory = distanceState.velocityHistory.filter(
+                entry => now - entry.time < thirtyMinutesMs
+              );
+              
+              distanceState.velocityKmPerSecond = calculatedVelocity;
+              console.log(`Distance updated: ${newDistance.toLocaleString()} km | Velocity: ${distanceState.velocityKmPerSecond.toFixed(2)} km/s | Time window: ${(timeDiffSeconds / 60).toFixed(1)} min (accuracy: fallback)`);
+              
+              // Update acceleration status
+              updateAccelerationStatus();
+            }
+          }
+        }
+      } else {
+        console.log(`Initial distance: ${newDistance.toLocaleString()} km (need more points for velocity calculation)`);
+      }
+      
+      // Update the state with new real distance
+      distanceState.lastRealDistance = newDistance;
+      distanceState.lastRealDistanceTime = now;
+      distanceState.currentDisplayDistance = newDistance;
+      
+      // Update display immediately with the new real distance
+      updateDistanceDisplay(newDistance);
+    }
+  } catch (e) {
+    console.error('Distance fetch failed:', e);
+  }
+}
+
+function updateAccelerationStatus() {
+  const statusEl = document.getElementById('accelerationStatus');
+  const detailsEl = document.getElementById('accelerationDetails');
+  if (!statusEl || !detailsEl) return;
+  
+  // Need at least 3 velocity measurements to detect reliable acceleration
+  if (distanceState.velocityHistory.length < 3) {
+    statusEl.textContent = '';
+    detailsEl.textContent = '';
+    return;
+  }
+  
+  const history = distanceState.velocityHistory;
+  
+  // Calculate linear regression acceleration over the entire recent history (more robust)
+  // This gives us a true acceleration rate (km/s²) rather than just comparing averages
+  const recentCount = Math.min(10, history.length); // Use up to last 10 measurements for better fit
+  const recentVelocities = history.slice(-recentCount);
+  
+  if (recentVelocities.length < 3) {
+    statusEl.textContent = '';
+    detailsEl.textContent = '';
+    return;
+  }
+  
+  // Calculate time deltas in seconds
+  const timeDeltas = [];
+  const velocities = [];
+  
+  for (let i = 0; i < recentVelocities.length; i++) {
+    timeDeltas.push(recentVelocities[i].time / 1000); // Convert to seconds
+    velocities.push(recentVelocities[i].velocity);
+  }
+  
+  // Linear regression: find best fit line for velocity vs time
+  const n = velocities.length;
+  let sumTime = 0, sumVel = 0, sumTimeVel = 0, sumTimeSq = 0;
+  
+  for (let i = 0; i < n; i++) {
+    sumTime += timeDeltas[i];
+    sumVel += velocities[i];
+    sumTimeVel += timeDeltas[i] * velocities[i];
+    sumTimeSq += timeDeltas[i] * timeDeltas[i];
+  }
+  
+  // Slope = acceleration (km/s²), Intercept = initial velocity
+  const denominator = n * sumTimeSq - sumTime * sumTime;
+  if (denominator === 0) {
+    statusEl.textContent = '';
+    detailsEl.textContent = '';
+    return;
+  }
+  
+  const acceleration = (n * sumTimeVel - sumTime * sumVel) / denominator;
+  
+  // Calculate R² (correlation coefficient squared) to measure confidence
+  const meanVel = sumVel / n;
+  let ssTotal = 0, ssResidual = 0;
+  
+  for (let i = 0; i < n; i++) {
+    const predicted = acceleration * timeDeltas[i] + ((sumVel - acceleration * sumTime) / n);
+    ssTotal += Math.pow(velocities[i] - meanVel, 2);
+    ssResidual += Math.pow(velocities[i] - predicted, 2);
+  }
+  
+  const rSquared = ssTotal > 0 ? 1 - (ssResidual / ssTotal) : 0;
+  
+  // Calculate time span and velocity change for display
+  const timeSpanSeconds = timeDeltas[timeDeltas.length - 1] - timeDeltas[0];
+  const velocityChange = acceleration * timeSpanSeconds; // Total velocity change over the period
+  
+  // Format time span nicely
+  let timeSpanText = '';
+  if (timeSpanSeconds < 60) {
+    timeSpanText = Math.round(timeSpanSeconds) + ' seconds';
+  } else if (timeSpanSeconds < 3600) {
+    timeSpanText = Math.round(timeSpanSeconds / 60) + ' minutes';
+  } else {
+    const hours = Math.round(timeSpanSeconds / 3600);
+    timeSpanText = hours + ' hour' + (hours > 1 ? 's' : '');
+  }
+  
+  // Only show acceleration/deceleration if:
+  // 1. Acceleration magnitude is significant (> 0.001 km/s²)
+  // 2. Trend is confident (R² > 0.3, meaning at least 30% of variance is explained by trend)
+  const accelerationThreshold = 0.001; // km/s² (very sensitive)
+  const confidenceThreshold = 0.3; // R² threshold
+  
+  console.log(`Acceleration: ${acceleration.toFixed(6)} km/s² | R²: ${rSquared.toFixed(3)} | Confidence: ${(rSquared * 100).toFixed(1)}% | Change: ${velocityChange.toFixed(2)} km/s over ${timeSpanText}`);
+  
+  // Check if we have strong confidence and significant acceleration
+  if (rSquared > confidenceThreshold) {
+    if (acceleration > accelerationThreshold) {
+      statusEl.textContent = 'Accelerating';
+      const changePerMinute = velocityChange / (timeSpanSeconds / 60);
+      detailsEl.textContent = `+${velocityChange.toFixed(2)} km/s over ${timeSpanText} (+${changePerMinute.toFixed(3)} km/s per min)`;
+    } else if (acceleration < -accelerationThreshold) {
+      statusEl.textContent = 'Decelerating';
+      const changePerMinute = Math.abs(velocityChange) / (timeSpanSeconds / 60);
+      detailsEl.textContent = `−${Math.abs(velocityChange).toFixed(2)} km/s over ${timeSpanText} (−${changePerMinute.toFixed(3)} km/s per min)`;
+    } else {
+      statusEl.textContent = '';
+      detailsEl.textContent = '';
+    }
+  } else {
+    statusEl.textContent = ''; // Not confident enough
+    detailsEl.textContent = '';
+  }
+}
+
+function updateDistanceDisplay(distanceKm) {
+  const distEl = document.getElementById('distanceValue');
+  distEl.textContent = distanceKm.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  // Update the visualizations with the new distance
+  drawContactVisualization(distanceKm);
+  drawTrackingVisualization(distanceKm);
+}
+
+function interpolateDistance() {
+  if (distanceState.lastRealDistanceTime === null || distanceState.velocityKmPerSecond === null) {
+    return;
+  }
+  
+  const now = Date.now();
+  const timeSinceLastFetchSeconds = (now - distanceState.lastRealDistanceTime) / 1000;
+  
+  // Calculate interpolated distance based on velocity
+  // Velocity is positive (approaching), so distance decreases
+  const distanceChange = distanceState.velocityKmPerSecond * timeSinceLastFetchSeconds;
+  const interpolatedDistance = distanceState.lastRealDistance - distanceChange;
+  
+  // Update display with interpolated value
+  distanceState.currentDisplayDistance = interpolatedDistance;
+  updateDistanceDisplay(interpolatedDistance);
+}
+
+async function fetchLatest() {
+  document.getElementById('status').textContent = 'Status: fetching…';
+  try {
+    const res = await safeFetchJson(API_ROOT + '/api/latest');
+    if (!res.ok) {
+      document.getElementById('status').textContent = 'Status: fetch failed';
+      return;
+    }
+    const cache = res.json.cache || res.json;
+    let mag = cache.latestMag ?? cache.observedMag ?? cache.predictedMag ?? null;
+    let src = cache.source ?? 'unknown';
+    let magStatus = cache.magStatus ?? 'normal';
+
+    if (mag === null) {
+      document.getElementById('status').textContent = 'Status: no data';
+      return;
+    }
+
+    // Validate and sanitize data
+    const parsedMag = Number(mag);
+    if (!isFinite(parsedMag) || parsedMag < 0 || parsedMag > 30) {
+      console.error('Invalid magnitude value:', mag);
+      document.getElementById('status').textContent = 'Status: invalid data';
+      return;
+    }
+
+    const entry = {
+      time: new Date(),
+      src: String(src).slice(0, 100), // Limit length
+      mag: parsedMag,
+      magStatus: ['normal', 'abnormal'].includes(magStatus) ? magStatus : 'normal',
+      note: ''
+    };
+
+    // add to history if new
+    if (!history.length || history[0].mag !== entry.mag) {
+      history.unshift(entry);
+      if (history.length > MAX_HISTORY) history.pop();
+    }
+
+    renderHistoryTable();
+    updateUIFromEntry(entry);
+
+    renderHistoryTable();
+    updateUIFromEntry(entry);
+
+    document.getElementById('lastUpdated').textContent = 'Last update: ' + formatUTC(new Date(cache.updated || Date.now()));
+    document.getElementById('status').textContent = 'Status: OK';
+  } catch (e) {
+    document.getElementById('status').textContent = 'Status: error';
+    console.error(e);
+  }
+}
+
+// start automatic polling
+(async function() {
+  // immediate fetch on page load
+  await fetchLatest();
+  await fetchDistance();
+  // then schedule for magnitude (every 6 hours) and distance (every 60 seconds for real data)
+  pollTimer = setInterval(fetchLatest, CLIENT_POLL_SECONDS * 1000);
+  distanceTimer = setInterval(fetchDistance, DISTANCE_POLL_SECONDS * 1000);
+  // Interpolate distance display every second
+  distanceDisplayTimer = setInterval(interpolateDistance, DISTANCE_DISPLAY_INTERVAL);
+})();
+
+// ===== DOUBLE-TAP/DOUBLE-CLICK JOYSTICK CONTROL SYSTEM (DISABLED - KEYBOARD ONLY) =====
+(function() {
+  let lastTapTime = 0;
+  const DOUBLE_TAP_DELAY = 300; // milliseconds
+  const controlPanel = document.getElementById('controlPanel');
+  const closePanelBtn = document.getElementById('closePanelBtn');
+  const dragHandle = document.getElementById('dragHandle');
+  let isManualControl = true; // Always true for keyboard control
+  
+  // Drag state
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  
+  // Helper function to toggle control panel
+  function toggleControlPanel() {
+    if (controlPanel.classList.contains('active')) {
+      controlPanel.classList.remove('active');
+      isManualControl = false;
+    } else {
+      controlPanel.classList.add('active');
+      isManualControl = true;
+    }
+  }
+  
+  // Auto-enable on mobile devices
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    controlPanel.classList.add('active');
+    isManualControl = true;
+    console.log('Mobile controls enabled');
+  }
+  
+  // Double-click detection (DISABLED)
+  // document.addEventListener('dblclick', function(e) { });
+  
+  // Double-tap detection (DISABLED)
+  // document.addEventListener('touchstart', function(e) { });
+  
+  // Close button
+  closePanelBtn.addEventListener('click', function() {
+    controlPanel.classList.remove('active');
+    isManualControl = false;
+  });
+  
+  // Drag functionality
+  function startDrag(e) {
+    e.preventDefault();
+    isDragging = true;
+    
+    const rect = controlPanel.getBoundingClientRect();
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    
+    dragOffsetX = clientX - rect.left;
+    dragOffsetY = clientY - rect.top;
+    
+    dragHandle.style.cursor = 'grabbing';
+  }
+  
+  function drag(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    
+    let newLeft = clientX - dragOffsetX;
+    let newTop = clientY - dragOffsetY;
+    
+    // Keep panel within viewport bounds
+    const maxLeft = window.innerWidth - controlPanel.offsetWidth;
+    const maxTop = window.innerHeight - controlPanel.offsetHeight;
+    
+    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+    newTop = Math.max(0, Math.min(newTop, maxTop));
+    
+    controlPanel.style.left = newLeft + 'px';
+    controlPanel.style.top = newTop + 'px';
+    controlPanel.style.right = 'auto';
+    controlPanel.style.bottom = 'auto';
+  }
+  
+  function stopDrag(e) {
+    if (isDragging) {
+      e.preventDefault();
+      isDragging = false;
+      dragHandle.style.cursor = 'move';
+    }
+  }
+  
+  // Touch events
+  dragHandle.addEventListener('touchstart', startDrag);
+  document.addEventListener('touchmove', drag);
+  document.addEventListener('touchend', stopDrag);
+  
+  // Mouse events
+  dragHandle.addEventListener('mousedown', startDrag);
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('mouseup', stopDrag);
+  
+  // Joystick controls
+  const upBtn = document.getElementById('upBtn');
+  const downBtn = document.getElementById('downBtn');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+  const fireBtn = document.getElementById('fireBtn');
+  
+  // Keyboard state tracking
+  const keyboardState = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+    ' ': false, // Spacebar
+    'h': false, // Hyperspace
+    'H': false  // Hyperspace (uppercase)
+  };
+
+  // Listen for keyboard events
+  document.addEventListener('keydown', function(e) {
+    if (e.key in keyboardState) {
+      keyboardState[e.key] = true;
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('keyup', function(e) {
+    if (e.key in keyboardState) {
+      keyboardState[e.key] = false;
+      e.preventDefault();
+    }
+  });
+
+  // Export manual control state and button states for game to use
+  window.joystickControl = {
+    isManualControl: () => isManualControl,
+    getThrust: () => false,
+    getRotation: () => 0,
+    getFire: () => false,
+    pressedButtons: {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+      fire: false,
+      hyperspace: false
+    },
+    keyboardState: keyboardState
+  };
+  
+  // Button event handlers
+  function setupButton(btn, key) {
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons[key] = true;
+    });
+    
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons[key] = false;
+    });
+    
+    btn.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons[key] = true;
+    });
+    
+    btn.addEventListener('mouseup', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons[key] = false;
+    });
+  }
+  
+  setupButton(upBtn, 'up');
+  setupButton(downBtn, 'down');
+  setupButton(leftBtn, 'left');
+  setupButton(rightBtn, 'right');
+  setupButton(fireBtn, 'fire');
+  
+  // Hyperspace button handler
+  const hyperspaceBtn = document.getElementById('hyperspaceBtn');
+  if (hyperspaceBtn) {
+    hyperspaceBtn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons.hyperspace = true;
+    });
+    
+    hyperspaceBtn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons.hyperspace = false;
+    });
+    
+    hyperspaceBtn.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons.hyperspace = true;
+    });
+    
+    hyperspaceBtn.addEventListener('mouseup', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons.hyperspace = false;
+    });
+  }
+})();
+
+// ===== ARCADE SOUND EFFECTS SYSTEM =====
+class ArcadeSound {
+  constructor(audioContext) {
+    this.ctx = audioContext;
+  }
+  
+  playShoot() {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.1);
+    
+    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+    
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.1);
+  }
+  
+  playAsteroidHit(baseFreq = 150) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq / 2, this.ctx.currentTime + 0.15);
+    
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+    
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.15);
+  }
+  
+  playExplosion() {
+    // Create a noise burst for explosion
+    const bufferSize = this.ctx.sampleRate * 0.5; // 0.5 seconds
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(200, this.ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.5);
+    
+    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+    
+    source.start(this.ctx.currentTime);
+    source.stop(this.ctx.currentTime + 0.5);
+  }
+  
+  playHyperspace() {
+    // Classic oscillating "whoosh" sound
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.type = 'triangle';
+    
+    // Pitch sweep: low to high to low
+    const duration = 0.4;
+    osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, this.ctx.currentTime + duration / 2);
+    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + duration);
+    
+    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+    
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + duration);
+  }
+  
+  playUfoTheme() {
+    // Classic UFO "beep-boop" sound
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain1 = this.ctx.createGain();
+    const gain2 = this.ctx.createGain();
+    const mainGain = this.ctx.createGain();
+    
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+    gain1.connect(mainGain);
+    gain2.connect(mainGain);
+    mainGain.connect(this.ctx.destination);
+    
+    osc1.frequency.setValueAtTime(400, this.ctx.currentTime);
+    osc2.frequency.setValueAtTime(300, this.ctx.currentTime);
+    
+    gain1.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    gain2.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    
+    mainGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    mainGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+    
+    osc1.start(this.ctx.currentTime);
+    osc2.start(this.ctx.currentTime);
+    osc1.stop(this.ctx.currentTime + 0.3);
+    osc2.stop(this.ctx.currentTime + 0.3);
+  }
+  
+  playUfoBullet() {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.08);
+    
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+    
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.08);
+  }
+  
+  playThrust() {
+    // Subtle rumble for engine thrust
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(80, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(120, this.ctx.currentTime + 0.1);
+    osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.2);
+    
+    gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+    
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.2);
+  }
+}
+
+// Initialize audio context
+let audioContext = null;
+let arcadeSound = null;
+let soundEnabled = true; // Global sound state
+
+function initAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    arcadeSound = new ArcadeSound(audioContext);
+  }
+}
+
+// Sound playback helpers
+function playSound(soundName) {
+  if (!soundEnabled) return; // Don't play if sound is disabled
+  if (!arcadeSound) initAudio();
+  
+  // Resume audio context if suspended (required on some browsers)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  
+  switch(soundName) {
+    case 'shoot': arcadeSound.playShoot(); break;
+    case 'hit': arcadeSound.playAsteroidHit(); break;
+    case 'explosion': arcadeSound.playExplosion(); break;
+    case 'hyperspace': arcadeSound.playHyperspace(); break;
+    case 'ufo': arcadeSound.playUfoTheme(); break;
+    case 'ufobullet': arcadeSound.playUfoBullet(); break;
+    case 'thrust': arcadeSound.playThrust(); break;
+  }
+}
+
+// ===== ASTEROID GAME BACKGROUND ANIMATION =====
+(function() {
+  const canvas = document.getElementById('asteroidCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Set canvas size to match window
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  
+  // Game state
+  const ship = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    angle: 0,
+    velocity: { x: 0, y: 0 },
+    size: 15,
+    thrust: false,
+    rotation: 0,
+    exploded: false,
+    respawnTime: 0
+  };
+  
+  const asteroids = [];
+  const bullets = [];
+  const particles = [];
+  const stars = [];
+  const ufos = [];
+  const ufoBullets = [];
+  const aliens = []; // Rare powerful aliens
+  let lastHugeAsteroidTime = Date.now();
+  const HUGE_ASTEROID_INTERVAL = 20000; // 20 seconds
+  let lastUfoTime = Date.now();
+  let nextUfoInterval = 20000 + Math.random() * 15000; // 20-35 seconds
+  let lastAlienTime = Date.now();
+  let nextAlienInterval = 45000 + Math.random() * 30000; // 45-75 seconds (rare)
+  let lastHyperspaceTime = 0;
+  const HYPERSPACE_COOLDOWN = 8000; // 8 seconds
+  
+  // Game state
+  let score = 0;
+  let lives = 3;
+  let nextExtraLifeAt = 1000; // Score threshold for next extra life
+  let gameOver = false;
+  let gamePaused = false;
+  // soundEnabled is global (defined outside this scope)
+  let dualCannon = false; // Powerup from destroying UFO
+  
+  // Create background stars
+  for (let i = 0; i < 150; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 1.5 + 0.5,
+      opacity: Math.random() * 0.5 + 0.3
+    });
+  }
+  
+  // Track red asteroid fragments
+  let redAsteroidFragments = new Set(); // IDs of fragments from red asteroid
+  let redAsteroidId = 0; // Counter for unique IDs
+  let dualThruster = false; // Dual thruster powerup state
+  let thrusterPower = 1; // Thruster power multiplier
+  let tripleCannon = false; // Triple cannon powerup (from alien)
+  let cannonRange = 1; // Bullet range multiplier
+  let largerForcefield = false; // Larger forcefield from alien
+  
+  // Track blue asteroid fragments
+  let blueAsteroidFragments = new Set(); // IDs of fragments from blue asteroid
+  let blueAsteroidId = 0; // Counter for unique IDs
+  let energyForcefield = false; // Energy forcefield powerup state
+
+  // Powerup sync functions for co-op
+  window.getPowerups = () => {
+    return {
+      dualCannon,
+      dualThruster,
+      thrusterPower,
+      energyForcefield,
+      tripleCannon,
+      cannonRange,
+      largerForcefield
+    };
+  };
+  
+  window.syncPowerups = (powerups) => {
+    // In co-op mode, sync powerups from other player
+    if (window.getGameMode && window.getGameMode() === 'coop') {
+      dualCannon = dualCannon || powerups.dualCannon;
+      dualThruster = dualThruster || powerups.dualThruster;
+      tripleCannon = tripleCannon || powerups.tripleCannon;
+      thrusterPower = Math.max(thrusterPower, powerups.thrusterPower);
+      cannonRange = Math.max(cannonRange, powerups.cannonRange);
+      energyForcefield = energyForcefield || powerups.energyForcefield;
+      largerForcefield = largerForcefield || powerups.largerForcefield;
+    }
+  };
+  
+  // Handle being hit by other player in VS mode
+  window.handlePlayerHit = () => {
+    if (window.getGameMode && window.getGameMode() === 'vs' && !ship.exploded) {
+      lives--;
+      dualCannon = false;
+      dualThruster = false;
+      thrusterPower = 1;
+      tripleCannon = false;
+      cannonRange = 1;
+      energyForcefield = false;
+      largerForcefield = false;
+      ship.exploded = true;
+      ship.respawnTime = Date.now() + 3000;
+      createParticles(ship.x, ship.y, 30);
+      playSound('explosion');
+      console.log(`Hit by other player! Lives remaining: ${lives}`);
+      
+      if (lives <= 0) {
+        gameOver = true;
+        console.log('GAME OVER - Defeated by other player!');
+      }
+    }
+  };
+
+  // Create initial asteroids
+  function createAsteroid(x, y, size, velocity, isRed = false, fragmentId = null, isBlue = false, blueFragmentId = null) {
+    // Determine if this asteroid has a prize word (only large asteroids)
+    let prizeWord = null;
+    const asteroidSize = size || Math.random() * 30 + 20;
+    if (asteroidSize >= 60 && !isRed && !isBlue && Math.random() < 0.3) { // 30% chance for large asteroids
+      const prizes = ['LASER', 'FORCE', 'THRUST'];
+      prizeWord = prizes[Math.floor(Math.random() * prizes.length)];
+    }
+    
+    return {
+      x: x || Math.random() * canvas.width,
+      y: y || Math.random() * canvas.height,
+      velocity: velocity || {
+        x: (Math.random() - 0.5) * 2,
+        y: (Math.random() - 0.5) * 2
+      },
+      size: asteroidSize,
+      angle: Math.random() * Math.PI * 2,
+      rotation: (Math.random() - 0.5) * 0.05,
+      points: generateAsteroidShape(),
+      isRed: isRed,
+      fragmentId: fragmentId, // Tracks which red asteroid this belongs to
+      isBlue: isBlue,
+      blueFragmentId: blueFragmentId, // Tracks which blue asteroid this belongs to
+      prizeWord: prizeWord // Prize word for large asteroids
+    };
+  }
+  
+  // Create huge asteroid entering from edge
+  function spawnHugeAsteroid() {
+    const edge = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+    let x, y, velocity;
+    const speed = 3 + Math.random() * 2; // Faster than normal
+    const size = 80 + Math.random() * 40; // Much larger (80-120)
+    
+    if (edge === 0) { // top
+      x = Math.random() * canvas.width;
+      y = -size;
+      velocity = { x: (Math.random() - 0.5) * 2, y: speed };
+    } else if (edge === 1) { // right
+      x = canvas.width + size;
+      y = Math.random() * canvas.height;
+      velocity = { x: -speed, y: (Math.random() - 0.5) * 2 };
+    } else if (edge === 2) { // bottom
+      x = Math.random() * canvas.width;
+      y = canvas.height + size;
+      velocity = { x: (Math.random() - 0.5) * 2, y: -speed };
+    } else { // left
+      x = -size;
+      y = Math.random() * canvas.height;
+      velocity = { x: speed, y: (Math.random() - 0.5) * 2 };
+    }
+    
+    // 20% chance to spawn as red asteroid, 15% chance for blue
+    const rand = Math.random();
+    const isRed = rand < 0.2;
+    const isBlue = !isRed && rand < 0.35; // 15% chance (0.2 to 0.35)
+    const fragmentId = isRed ? ++redAsteroidId : null;
+    const blueFragmentId = isBlue ? ++blueAsteroidId : null;
+    
+    if (isRed) {
+      redAsteroidFragments.add(fragmentId);
+    }
+    if (isBlue) {
+      blueAsteroidFragments.add(blueFragmentId);
+    }
+    
+    asteroids.push(createAsteroid(x, y, size, velocity, isRed, fragmentId, isBlue, blueFragmentId));
+    console.log(`Huge asteroid spawned! Size: ${size.toFixed(0)}${isRed ? ' (RED - Dual Thruster!)' : isBlue ? ' (BLUE - Energy Forcefield!)' : ''}`);
+  }
+  
+  // Spawn UFO
+  function spawnUfo() {
+    const edge = Math.floor(Math.random() * 2); // 0=left, 1=right
+    const y = Math.random() * (canvas.height * 0.8) + canvas.height * 0.1; // Middle 80% of screen
+    let x, velocityX;
+    
+    if (edge === 0) { // left side, moving right
+      x = -60;
+      velocityX = 5 + Math.random() * 3; // Faster
+    } else { // right side, moving left
+      x = canvas.width + 60;
+      velocityX = -(5 + Math.random() * 3); // Faster
+    }
+    
+    ufos.push({
+      x,
+      y,
+      velocityX,
+      velocityY: 0,
+      targetY: y,
+      size: 30,
+      bobOffset: Math.random() * Math.PI * 2,
+      glowPhase: 0,
+      lastShotTime: Date.now(),
+      aggressionLevel: Math.random() // 0-1, higher = more aggressive
+    });
+    playSound('ufo');
+    console.log('UFO spawned!');
+  }
+  
+  // Spawn rare Alien spacecraft
+  function spawnAlien() {
+    const edge = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+    let x, y, velocityX, velocityY;
+    const speed = 6 + Math.random() * 4; // Fast moving
+    
+    if (edge === 0) { // top
+      x = Math.random() * canvas.width;
+      y = -80;
+      velocityX = (Math.random() - 0.5) * 4;
+      velocityY = speed;
+    } else if (edge === 1) { // right
+      x = canvas.width + 80;
+      y = Math.random() * canvas.height;
+      velocityX = -speed;
+      velocityY = (Math.random() - 0.5) * 4;
+    } else if (edge === 2) { // bottom
+      x = Math.random() * canvas.width;
+      y = canvas.height + 80;
+      velocityX = (Math.random() - 0.5) * 4;
+      velocityY = -speed;
+    } else { // left
+      x = -80;
+      y = Math.random() * canvas.height;
+      velocityX = speed;
+      velocityY = (Math.random() - 0.5) * 4;
+    }
+    
+    aliens.push({
+      x,
+      y,
+      velocityX,
+      velocityY,
+      size: 40,
+      rotationAngle: 0,
+      glowPhase: 0,
+      pulsePhase: 0,
+      health: 5 // Takes 5 hits to destroy
+    });
+    playSound('ufo');
+    console.log('🛸 RARE ALIEN SPACECRAFT DETECTED!');
+  }
+  
+  // Update Aliens
+  function updateAliens() {
+    aliens.forEach((alien, index) => {
+      alien.x += alien.velocityX;
+      alien.y += alien.velocityY;
+      alien.rotationAngle += 0.03;
+      alien.glowPhase += 0.08;
+      alien.pulsePhase += 0.05;
+      
+      // Check collision with player bullets
+      bullets.forEach((bullet, bIndex) => {
+        const dx = bullet.x - alien.x;
+        const dy = bullet.y - alien.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < alien.size) {
+          // Alien hit!
+          alien.health--;
+          createParticles(alien.x, alien.y, 10);
+          bullets.splice(bIndex, 1);
+          playSound('hit');
+          
+          if (alien.health <= 0) {
+            // Alien destroyed! Award powerful powerups
+            createParticles(alien.x, alien.y, 40);
+            aliens.splice(index, 1);
+            playSound('explosion');
+            score += 1000; // Huge points for alien!
+            
+            // Award triple cannon with 2x range
+            tripleCannon = true;
+            cannonRange = 2;
+            
+            // Award super thrusters (4x power)
+            dualThruster = true;
+            thrusterPower = 4;
+            
+            // Award larger forcefield
+            energyForcefield = true;
+            largerForcefield = true;
+            
+            console.log('🎉 ALIEN DESTROYED! ULTIMATE POWERUPS UNLOCKED!');
+            console.log('⚡ Triple Cannon (2x Range) | 🚀 Super Thrusters (4x) | 🛡️ Larger Forcefield');
+          }
+        }
+      });
+      
+      // Remove if off screen
+      if (alien.x < -150 || alien.x > canvas.width + 150 || 
+          alien.y < -150 || alien.y > canvas.height + 150) {
+        aliens.splice(index, 1);
+        console.log('Alien escaped!');
+      }
+    });
+  }
+  
+  // Draw Aliens
+  function drawAliens() {
+    aliens.forEach(alien => {
+      ctx.save();
+      ctx.translate(alien.x, alien.y);
+      ctx.rotate(alien.rotationAngle);
+      
+      // Powerful glow effect
+      const glowIntensity = 0.5 + Math.sin(alien.glowPhase) * 0.3;
+      const pulseSize = 1 + Math.sin(alien.pulsePhase) * 0.1;
+      
+      ctx.shadowColor = `rgba(255, 100, 255, ${glowIntensity})`;
+      ctx.shadowBlur = 30;
+      
+      // Outer ring (rotating)
+      ctx.strokeStyle = 'rgba(255, 100, 255, 0.8)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, alien.size * pulseSize, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Inner crystal core
+      ctx.fillStyle = 'rgba(200, 50, 255, 0.7)';
+      ctx.strokeStyle = 'rgba(255, 150, 255, 0.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const r = alien.size * 0.5 * pulseSize;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Energy beams
+      for (let i = 0; i < 3; i++) {
+        const beamAngle = (i / 3) * Math.PI * 2 + alien.rotationAngle * 2;
+        ctx.strokeStyle = `rgba(255, 100, 255, ${0.4 + glowIntensity * 0.3})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(beamAngle) * alien.size * 0.8, Math.sin(beamAngle) * alien.size * 0.8);
+        ctx.stroke();
+      }
+      
+      // Health indicator
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255, 100, 255, 0.9)';
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(`HP: ${alien.health}`, 0, alien.size + 15);
+      
+      ctx.restore();
+      
+      // Label
+      ctx.fillStyle = 'rgba(255, 100, 255, 0.9)';
+      ctx.font = 'bold 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('🛸 ALIEN', alien.x, alien.y - alien.size - 10);
+    });
+  }
+  
+  // Update UFOs
+  function updateUfos() {
+    ufos.forEach((ufo, index) => {
+      ufo.x += ufo.velocityX;
+      ufo.bobOffset += 0.05;
+      ufo.glowPhase += 0.1;
+      
+      // Erratic vertical movement - track player
+      if (!ship.exploded && ufo.x > 50 && ufo.x < canvas.width - 50) {
+        // Change target Y occasionally for unpredictable movement
+        if (Math.random() < 0.02) {
+          // Sometimes chase player, sometimes random
+          if (Math.random() < 0.7 + ufo.aggressionLevel * 0.3) {
+            // Chase player Y position
+            ufo.targetY = ship.y + (Math.random() - 0.5) * 100;
+          } else {
+            // Random Y position
+            ufo.targetY = Math.random() * canvas.height;
+          }
+          // Keep within bounds
+          ufo.targetY = Math.max(50, Math.min(canvas.height - 50, ufo.targetY));
+        }
+        
+        // Move toward target Y
+        const yDiff = ufo.targetY - ufo.y;
+        ufo.velocityY = yDiff * 0.05; // Smooth movement
+        ufo.y += ufo.velocityY;
+      }
+      
+      // Check collision with ship - UFOs destroy on contact
+      if (!ship.exploded && !gameOver) {
+        const bobY = ufo.y + Math.sin(ufo.bobOffset) * 3;
+        const dx = ship.x - ufo.x;
+        const dy = ship.y - bobY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < ufo.size + ship.size) {
+          if (energyForcefield) {
+            // Forcefield absorbs hit and is destroyed
+            energyForcefield = false;
+            createParticles(ship.x, ship.y, 20);
+            playSound('hit');
+            console.log('🛡️ FORCEFIELD ABSORBED UFO COLLISION!');
+            // Push UFO away
+            const pushAngle = Math.atan2(ufo.y - ship.y, ufo.x - ship.x);
+            ufo.x += Math.cos(pushAngle) * 50;
+            ufo.y += Math.sin(pushAngle) * 50;
+          } else {
+            // Ship destroyed by UFO collision
+            lives--;
+            dualCannon = false;
+            dualThruster = false;
+            thrusterPower = 1;
+            tripleCannon = false;
+            cannonRange = 1;
+            energyForcefield = false;
+            largerForcefield = false;
+            ship.exploded = true;
+            ship.respawnTime = Date.now() + 3000;
+            createParticles(ship.x, ship.y, 30);
+            playSound('explosion');
+            console.log(`Ship destroyed by UFO collision! Lives remaining: ${lives}`);
+            
+            if (lives <= 0) {
+              gameOver = true;
+              console.log('GAME OVER!');
+            }
+          }
+        }
+      }
+      
+      // Shoot at ship if not exploded and on screen - more aggressive
+      if (!ship.exploded && ufo.x > 0 && ufo.x < canvas.width) {
+        const now = Date.now();
+        const shootInterval = 1500 - (ufo.aggressionLevel * 500); // 1.5s to 1s based on aggression
+        if (now - ufo.lastShotTime > shootInterval) {
+          const bobY = ufo.y + Math.sin(ufo.bobOffset) * 5;
+          const dx = ship.x - ufo.x;
+          const dy = ship.y - bobY;
+          const angle = Math.atan2(dy, dx);
+          
+          ufoBullets.push({
+            x: ufo.x,
+            y: bobY,
+            velocity: {
+              x: Math.cos(angle) * 4,
+              y: Math.sin(angle) * 4
+            },
+            life: 120
+          });
+          playSound('ufobullet');
+          ufo.lastShotTime = now;
+        }
+      }
+      
+      // Check collision with player bullets
+      bullets.forEach((bullet, bIndex) => {
+        const bobY = ufo.y + Math.sin(ufo.bobOffset) * 5;
+        const dx = bullet.x - ufo.x;
+        const dy = bullet.y - bobY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < ufo.size) {
+          // UFO destroyed!
+          createParticles(ufo.x, bobY, 20);
+          bullets.splice(bIndex, 1);
+          ufos.splice(index, 1);
+          playSound('explosion');
+          score += 200; // Big points for UFO!
+          dualCannon = true; // Award dual cannon powerup
+          console.log('UFO destroyed! Dual cannon activated!');
+        }
+      });
+      
+      // Remove if off screen
+      if (ufo.x < -100 || ufo.x > canvas.width + 100) {
+        ufos.splice(index, 1);
+      }
+    });
+  }
+  
+  // Update UFO bullets
+  function updateUfoBullets() {
+    ufoBullets.forEach((bullet, index) => {
+      bullet.x += bullet.velocity.x;
+      bullet.y += bullet.velocity.y;
+      bullet.life--;
+      
+      // Check collision with ship - UFO bullets always destroy
+      if (!ship.exploded) {
+        const dx = bullet.x - ship.x;
+        const dy = bullet.y - ship.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < ship.size) {
+          // Ship hit by UFO bullet - always destroyed!
+          lives--;
+          dualCannon = false; // Lose powerup on death
+          dualThruster = false; // Lose dual thruster on death
+          thrusterPower = 1; // Reset thruster power
+          tripleCannon = false;
+          cannonRange = 1;
+          energyForcefield = false; // Lose forcefield
+          largerForcefield = false;
+          ship.exploded = true;
+          ship.respawnTime = Date.now() + 3000;
+          createParticles(ship.x, ship.y, 30);
+          ufoBullets.splice(index, 1);
+          playSound('explosion');
+          console.log(`Ship destroyed by UFO bullet! Lives remaining: ${lives}`);
+          
+          if (lives <= 0) {
+            gameOver = true;
+            console.log('GAME OVER!');
+          }
+          return;
+        }
+      }
+      
+      if (bullet.life <= 0 || bullet.x < 0 || bullet.x > canvas.width || 
+          bullet.y < 0 || bullet.y > canvas.height) {
+        ufoBullets.splice(index, 1);
+      }
+    });
+  }
+  
+  // Draw UFOs
+  function drawUfos() {
+    ufos.forEach(ufo => {
+      const bobY = ufo.y + Math.sin(ufo.bobOffset) * 3; // Reduced bob for more aggressive look
+      
+      ctx.save();
+      ctx.translate(ufo.x, bobY);
+      
+      // Glow effect
+      const glowIntensity = 0.3 + Math.sin(ufo.glowPhase) * 0.2;
+      ctx.shadowColor = `rgba(126, 240, 163, ${glowIntensity})`;
+      ctx.shadowBlur = 20;
+      
+      // UFO dome (top)
+      ctx.fillStyle = 'rgba(126, 240, 163, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(0, -5, ufo.size * 0.4, ufo.size * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // UFO body (disc)
+      ctx.fillStyle = 'rgba(126, 200, 255, 0.6)';
+      ctx.strokeStyle = 'rgba(126, 240, 163, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, ufo.size, ufo.size * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Windows
+      ctx.fillStyle = 'rgba(255, 255, 100, 0.9)';
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const wx = Math.cos(angle) * ufo.size * 0.5;
+        const wy = Math.sin(angle) * ufo.size * 0.15;
+        ctx.beginPath();
+        ctx.arc(wx, wy, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Light beam (occasionally)
+      if (Math.sin(ufo.glowPhase) > 0.5) {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(126, 240, 163, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(-10, ufo.size * 0.3);
+        ctx.lineTo(-15, 80);
+        ctx.lineTo(15, 80);
+        ctx.lineTo(10, ufo.size * 0.3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    });
+  }
+  
+  function generateAsteroidShape() {
+    const points = [];
+    const numPoints = Math.floor(Math.random() * 4) + 6;
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i / numPoints) * Math.PI * 2;
+      const radius = 0.7 + Math.random() * 0.3;
+      points.push({ angle, radius });
+    }
+    return points;
+  }
+  
+  // Initialize asteroids (4 small ones)
+  for (let i = 0; i < 4; i++) {
+    asteroids.push(createAsteroid(null, null, Math.random() * 20 + 15)); // Small: 15-35px
+  }
+  
+  // Create particle effect
+  function createParticles(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x,
+        y,
+        velocity: {
+          x: (Math.random() - 0.5) * 4,
+          y: (Math.random() - 0.5) * 4
+        },
+        life: 1,
+        size: Math.random() * 2 + 1
+      });
+    }
+  }
+  
+  // Autonomous ship AI or Manual Control
+  function updateShipAI() {
+    // Check if ship should respawn
+    if (ship.exploded) {
+      if (!gameOver && Date.now() >= ship.respawnTime) {
+        ship.exploded = false;
+        ship.x = canvas.width / 2;
+        ship.y = canvas.height / 2;
+        ship.velocity = { x: 0, y: 0 };
+        ship.angle = 0;
+        console.log('Ship respawned!');
+      }
+      return; // Don't update AI while exploded
+    }
+    
+    // Keyboard control is always active
+    const buttons = window.joystickControl.pressedButtons;
+    const keyboard = window.joystickControl.keyboardState;
+    const isManual = true; // Always use keyboard control
+    
+    if (isManual) {
+      // Handle rotation (joystick or keyboard)
+      if (buttons.left || keyboard.ArrowLeft) {
+        ship.angle -= 0.1;
+      }
+      if (buttons.right || keyboard.ArrowRight) {
+        ship.angle += 0.1;
+      }
+      
+      // Handle thrust (joystick or keyboard)
+      ship.thrust = buttons.up || keyboard.ArrowUp;
+      if (ship.thrust) {
+        ship.velocity.x += Math.cos(ship.angle) * 0.15 * thrusterPower;
+        ship.velocity.y += Math.sin(ship.angle) * 0.15 * thrusterPower;
+      }
+      
+      // Handle reverse thrust (joystick or keyboard)
+      if (buttons.down || keyboard.ArrowDown) {
+        ship.velocity.x -= Math.cos(ship.angle) * 0.08 * thrusterPower;
+        ship.velocity.y -= Math.sin(ship.angle) * 0.08 * thrusterPower;
+      }
+      
+      // Handle fire (joystick or keyboard spacebar)
+      const firePressed = buttons.fire || keyboard[' '];
+      if (firePressed && !ship.lastFireState) {
+        if (tripleCannon) {
+          // Fire three bullets (center + wings) with extended range
+          const leftAngle = ship.angle - Math.PI / 2;
+          const rightAngle = ship.angle + Math.PI / 2;
+          const offset = ship.size * 0.5;
+          
+          const bulletLife = 60 * cannonRange; // Extended range
+          
+          // Center bullet
+          const centerBullet = {
+            x: ship.x + Math.cos(ship.angle) * ship.size,
+            y: ship.y + Math.sin(ship.angle) * ship.size,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: bulletLife,
+            owner: 'me'
+          };
+          bullets.push(centerBullet);
+          
+          // Left bullet
+          const leftBullet = {
+            x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(leftAngle) * offset,
+            y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(leftAngle) * offset,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: bulletLife,
+            owner: 'me'
+          };
+          bullets.push(leftBullet);
+          
+          // Right bullet
+          const rightBullet = {
+            x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(rightAngle) * offset,
+            y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(rightAngle) * offset,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: bulletLife,
+            owner: 'me'
+          };
+          bullets.push(rightBullet);
+          
+          // Broadcast bullets to other player
+          if (window.broadcastBullet) {
+            window.broadcastBullet(centerBullet);
+            window.broadcastBullet(leftBullet);
+            window.broadcastBullet(rightBullet);
+          }
+        } else if (dualCannon) {
+          // Fire two bullets from wing positions
+          const leftAngle = ship.angle - Math.PI / 2;
+          const rightAngle = ship.angle + Math.PI / 2;
+          const offset = ship.size * 0.5;
+          
+          const bullet1 = {
+            x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(leftAngle) * offset,
+            y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(leftAngle) * offset,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: 60,
+            owner: 'me'
+          };
+          const bullet2 = {
+            x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(rightAngle) * offset,
+            y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(rightAngle) * offset,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: 60,
+            owner: 'me'
+          };
+          bullets.push(bullet1);
+          bullets.push(bullet2);
+          
+          // Broadcast bullets to other player
+          if (window.broadcastBullet) {
+            window.broadcastBullet(bullet1);
+            window.broadcastBullet(bullet2);
+          }
+        } else {
+          // Single bullet from center
+          const bullet = {
+            x: ship.x + Math.cos(ship.angle) * ship.size,
+            y: ship.y + Math.sin(ship.angle) * ship.size,
+            velocity: {
+              x: Math.cos(ship.angle) * 6,
+              y: Math.sin(ship.angle) * 6
+            },
+            life: 60,
+            owner: 'me'
+          };
+          bullets.push(bullet);
+          
+          // Broadcast bullet to other player
+          if (window.broadcastBullet) {
+            window.broadcastBullet(bullet);
+          }
+        }
+        playSound('shoot');
+      }
+      ship.lastFireState = firePressed;
+      
+      // Handle hyperspace (H key)
+      const hyperspacePressed = keyboard.h || keyboard.H;
+      const now = Date.now();
+      if (hyperspacePressed && !ship.lastHyperspaceState && now - lastHyperspaceTime > HYPERSPACE_COOLDOWN) {
+        // Activate hyperspace!
+        createParticles(ship.x, ship.y, 15);
+        ship.x = Math.random() * canvas.width;
+        ship.y = Math.random() * canvas.height;
+        ship.velocity.x = 0;
+        ship.velocity.y = 0;
+        createParticles(ship.x, ship.y, 15);
+        lastHyperspaceTime = now;
+        playSound('hyperspace');
+        console.log('Manual hyperspace jump!');
+      }
+      ship.lastHyperspaceState = hyperspacePressed;
+    } else {
+      // Original autonomous AI
+      ship.lastFireState = false;
+      
+      // Find nearest asteroid
+      let nearest = null;
+      let nearestDist = Infinity;
+      
+      asteroids.forEach(asteroid => {
+        const dx = asteroid.x - ship.x;
+        const dy = asteroid.y - ship.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearest = asteroid;
+        }
+      });
+      
+      if (nearest) {
+        // Aim at nearest asteroid
+        const dx = nearest.x - ship.x;
+        const dy = nearest.y - ship.y;
+        const targetAngle = Math.atan2(dy, dx);
+        
+        // Smooth rotation toward target
+        let angleDiff = targetAngle - ship.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        ship.angle += angleDiff * 0.05;
+        
+        // Shoot periodically
+        if (Math.random() < 0.02 && Math.abs(angleDiff) < 0.3) {
+          if (dualCannon) {
+            // Fire two bullets from wing positions
+            const leftAngle = ship.angle - Math.PI / 2;
+            const rightAngle = ship.angle + Math.PI / 2;
+            const offset = ship.size * 0.5;
+            
+            const bullet1 = {
+              x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(leftAngle) * offset,
+              y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(leftAngle) * offset,
+              velocity: {
+                x: Math.cos(ship.angle) * 6,
+                y: Math.sin(ship.angle) * 6
+              },
+              life: 60,
+              owner: 'me'
+            };
+            const bullet2 = {
+              x: ship.x + Math.cos(ship.angle) * ship.size + Math.cos(rightAngle) * offset,
+              y: ship.y + Math.sin(ship.angle) * ship.size + Math.sin(rightAngle) * offset,
+              velocity: {
+                x: Math.cos(ship.angle) * 6,
+                y: Math.sin(ship.angle) * 6
+              },
+              life: 60,
+              owner: 'me'
+            };
+            bullets.push(bullet1);
+            bullets.push(bullet2);
+            
+            // Broadcast bullets to other player
+            if (window.broadcastBullet) {
+              window.broadcastBullet(bullet1);
+              window.broadcastBullet(bullet2);
+            }
+          } else {
+            const bullet = {
+              x: ship.x + Math.cos(ship.angle) * ship.size,
+              y: ship.y + Math.sin(ship.angle) * ship.size,
+              velocity: {
+                x: Math.cos(ship.angle) * 6,
+                y: Math.sin(ship.angle) * 6
+              },
+              life: 60,
+              owner: 'me'
+            };
+            bullets.push(bullet);
+            
+            // Broadcast bullet to other player
+            if (window.broadcastBullet) {
+              window.broadcastBullet(bullet);
+            }
+          }
+          playSound('shoot');
+        }
+        
+        // Thrust occasionally
+        ship.thrust = Math.random() < 0.3;
+        if (ship.thrust) {
+          ship.velocity.x += Math.cos(ship.angle) * 0.1 * thrusterPower;
+          ship.velocity.y += Math.sin(ship.angle) * 0.1 * thrusterPower;
+          // playSound('thrust'); // Muted
+        }
+        
+        // Use hyperspace in dangerous situations
+        const now = Date.now();
+        if (now - lastHyperspaceTime > HYPERSPACE_COOLDOWN) {
+          // Check if in danger (nearby large asteroid or UFO bullets)
+          let inDanger = false;
+          
+          asteroids.forEach(asteroid => {
+            if (asteroid.size > 50) {
+              const dx = asteroid.x - ship.x;
+              const dy = asteroid.y - ship.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 100) inDanger = true;
+            }
+          });
+          
+          ufoBullets.forEach(bullet => {
+            const dx = bullet.x - ship.x;
+            const dy = bullet.y - ship.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 80) inDanger = true;
+          });
+          
+          if (inDanger && Math.random() < 0.1) {
+            // Activate hyperspace!
+            createParticles(ship.x, ship.y, 15);
+            ship.x = Math.random() * canvas.width;
+            ship.y = Math.random() * canvas.height;
+            ship.velocity.x = 0;
+            ship.velocity.y = 0;
+            createParticles(ship.x, ship.y, 15);
+            lastHyperspaceTime = now;
+            playSound('hyperspace');
+            console.log('Hyperspace jump!');
+          }
+        }
+      }
+    }
+    
+    // Apply velocity and friction
+    ship.velocity.x *= 0.99;
+    ship.velocity.y *= 0.99;
+    ship.x += ship.velocity.x;
+    ship.y += ship.velocity.y;
+    
+    // Wrap around screen
+    if (ship.x < 0) ship.x = canvas.width;
+    if (ship.x > canvas.width) ship.x = 0;
+    if (ship.y < 0) ship.y = canvas.height;
+    if (ship.y > canvas.height) ship.y = 0;
+  }
+  
+  // Update asteroids
+  function updateAsteroids() {
+    asteroids.forEach((asteroid, index) => {
+      asteroid.x += asteroid.velocity.x;
+      asteroid.y += asteroid.velocity.y;
+      asteroid.angle += asteroid.rotation;
+      
+      // Wrap around screen
+      if (asteroid.x < -50) asteroid.x = canvas.width + 50;
+      if (asteroid.x > canvas.width + 50) asteroid.x = -50;
+      if (asteroid.y < -50) asteroid.y = canvas.height + 50;
+      if (asteroid.y > canvas.height + 50) asteroid.y = -50;
+      
+      // Check collision with ship (all asteroids destroy, unless forcefield is active)
+      if (!ship.exploded && !gameOver) {
+        const dx = ship.x - asteroid.x;
+        const dy = ship.y - asteroid.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < asteroid.size + ship.size) {
+          if (energyForcefield) {
+            // Forcefield absorbs hit and is destroyed
+            energyForcefield = false;
+            createParticles(ship.x, ship.y, 20);
+            playSound('hit');
+            console.log('🛡️ FORCEFIELD ABSORBED HIT!');
+            // Push asteroid away
+            const pushAngle = Math.atan2(asteroid.y - ship.y, asteroid.x - ship.x);
+            asteroid.velocity.x += Math.cos(pushAngle) * 3;
+            asteroid.velocity.y += Math.sin(pushAngle) * 3;
+          } else {
+            // Ship explodes!
+            lives--;
+            dualCannon = false; // Lose powerup on death
+            dualThruster = false; // Lose dual thruster on death
+            thrusterPower = 1; // Reset thruster power
+            tripleCannon = false;
+            cannonRange = 1;
+            largerForcefield = false;
+            ship.exploded = true;
+            ship.respawnTime = Date.now() + 3000; // Respawn after 3 seconds
+            createParticles(ship.x, ship.y, 30);
+            playSound('explosion');
+            console.log(`Ship destroyed by large asteroid! Lives remaining: ${lives}`);
+            
+            if (lives <= 0) {
+              gameOver = true;
+              console.log('GAME OVER!');
+            }
+          }
+        }
+      }
+      
+      // Check collision with bullets
+      bullets.forEach((bullet, bIndex) => {
+        const dx = bullet.x - asteroid.x;
+        const dy = bullet.y - asteroid.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < asteroid.size) {
+          // Hit!
+          createParticles(asteroid.x, asteroid.y, 10);
+          bullets.splice(bIndex, 1);
+          playSound('hit');
+          
+          // Award prize if asteroid has one
+          if (asteroid.prizeWord) {
+            if (asteroid.prizeWord === 'LASER') {
+              if (!tripleCannon) {
+                tripleCannon = true;
+                cannonRange = 2;
+                console.log('⚡ LASER PRIZE! Triple Cannon with 2x Range!');
+              } else if (!dualCannon) {
+                dualCannon = true;
+                console.log('⚡ LASER PRIZE! Dual Cannon!');
+              }
+              playSound('powerup');
+            } else if (asteroid.prizeWord === 'FORCE') {
+              energyForcefield = true;
+              largerForcefield = true;
+              console.log('🛡️ FORCE PRIZE! Larger Energy Forcefield!');
+              playSound('powerup');
+            } else if (asteroid.prizeWord === 'THRUST') {
+              dualThruster = true;
+              thrusterPower = Math.max(thrusterPower, 4);
+              console.log('🚀 THRUST PRIZE! Super Thrusters (4x Power)!');
+              playSound('powerup');
+            }
+          }
+          
+          // Award points based on asteroid size
+          if (asteroid.size >= 80) {
+            score += 100; // Huge asteroid
+          } else if (asteroid.size >= 40) {
+            score += 50; // Large asteroid
+          } else if (asteroid.size >= 20) {
+            score += 25; // Medium asteroid
+          } else {
+            score += 10; // Small asteroid
+          }
+          
+          const wasRed = asteroid.isRed;
+          const fragmentId = asteroid.fragmentId;
+          const wasBlue = asteroid.isBlue;
+          const blueFragmentId = asteroid.blueFragmentId;
+          
+          // Split asteroid if large enough
+          if (asteroid.size > 15) {
+            asteroids.push(createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2, null, wasRed, fragmentId, wasBlue, blueFragmentId));
+            asteroids.push(createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2, null, wasRed, fragmentId, wasBlue, blueFragmentId));
+          } else if (wasRed && fragmentId) {
+            // This was the last fragment of a red asteroid - check if all destroyed
+            asteroids.splice(index, 1);
+            
+            // Check if any fragments of this red asteroid remain
+            const remainingFragments = asteroids.filter(a => a.fragmentId === fragmentId);
+            if (remainingFragments.length === 0) {
+              // All fragments destroyed! Award dual thruster powerup
+              dualThruster = true;
+              thrusterPower = 2;
+              redAsteroidFragments.delete(fragmentId);
+              createParticles(asteroid.x, asteroid.y, 30); // Extra particles
+              playSound('explosion');
+              console.log('🔥 RED ASTEROID DESTROYED! DUAL THRUSTER ACTIVATED!');
+              score += 500; // Bonus points!
+            }
+            return; // Don't splice again
+          } else if (wasBlue && blueFragmentId) {
+            // This was the last fragment of a blue asteroid - check if all destroyed
+            asteroids.splice(index, 1);
+            
+            // Check if any fragments of this blue asteroid remain
+            const remainingFragments = asteroids.filter(a => a.blueFragmentId === blueFragmentId);
+            if (remainingFragments.length === 0) {
+              // All fragments destroyed! Award energy forcefield powerup
+              energyForcefield = true;
+              blueAsteroidFragments.delete(blueFragmentId);
+              createParticles(asteroid.x, asteroid.y, 30); // Extra particles
+              playSound('explosion');
+              console.log('🛡️ BLUE ASTEROID DESTROYED! ENERGY FORCEFIELD ACTIVATED!');
+              score += 500; // Bonus points!
+            }
+            return; // Don't splice again
+          }
+          asteroids.splice(index, 1);
+        }
+      });
+      
+      // Check collision with other asteroids - apply physics
+      asteroids.forEach((otherAsteroid, otherIndex) => {
+        if (index >= otherIndex) return; // Skip self and avoid double-processing
+        
+        const dx = asteroid.x - otherAsteroid.x;
+        const dy = asteroid.y - otherAsteroid.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = asteroid.size + otherAsteroid.size;
+        
+        if (dist < minDist && dist > 0) {
+          // Collision detected - apply physics
+          // Mass is proportional to size cubed (volume)
+          const mass1 = Math.pow(asteroid.size, 3);
+          const mass2 = Math.pow(otherAsteroid.size, 3);
+          
+          // Normalize collision vector
+          const nx = dx / dist;
+          const ny = dy / dist;
+          
+          // Relative velocity
+          const dvx = asteroid.velocity.x - otherAsteroid.velocity.x;
+          const dvy = asteroid.velocity.y - otherAsteroid.velocity.y;
+          
+          // Relative velocity in collision normal direction
+          const dvn = dvx * nx + dvy * ny;
+          
+          // Do not resolve if velocities are separating
+          if (dvn > 0) return;
+          
+          // Collision impulse (elastic collision)
+          const impulse = (2 * dvn) / (mass1 + mass2);
+          
+          // Apply impulse to velocities
+          asteroid.velocity.x -= impulse * mass2 * nx;
+          asteroid.velocity.y -= impulse * mass2 * ny;
+          otherAsteroid.velocity.x += impulse * mass1 * nx;
+          otherAsteroid.velocity.y += impulse * mass1 * ny;
+          
+          // Separate asteroids to prevent overlap
+          const overlap = minDist - dist;
+          const separationRatio = overlap / 2;
+          const massRatio1 = mass2 / (mass1 + mass2);
+          const massRatio2 = mass1 / (mass1 + mass2);
+          
+          asteroid.x += nx * overlap * massRatio1;
+          asteroid.y += ny * overlap * massRatio1;
+          otherAsteroid.x -= nx * overlap * massRatio2;
+          otherAsteroid.y -= ny * overlap * massRatio2;
+          
+          // Visual feedback for collision
+          createParticles(
+            (asteroid.x + otherAsteroid.x) / 2,
+            (asteroid.y + otherAsteroid.y) / 2,
+            5
+          );
+          
+          // If one is much larger (8x mass ratio = 2x size ratio), destroy the smaller
+          const massRatio = Math.max(mass1, mass2) / Math.min(mass1, mass2);
+          if (massRatio >= 8) {
+            createParticles(
+              asteroid.size < otherAsteroid.size ? asteroid.x : otherAsteroid.x,
+              asteroid.size < otherAsteroid.size ? asteroid.y : otherAsteroid.y,
+              15
+            );
+            playSound('hit');
+            
+            // Remove the smaller asteroid
+            if (asteroid.size < otherAsteroid.size) {
+              asteroids.splice(index, 1);
+            } else {
+              asteroids.splice(otherIndex, 1);
+            }
+          }
+        }
+      });
+    });
+    
+    // Maintain asteroid count: max 3 large (>40px) and 4 small (<=40px)
+    const largeAsteroids = asteroids.filter(a => a.size > 40);
+    const smallAsteroids = asteroids.filter(a => a.size <= 40);
+    
+    // Add small asteroids if needed (max 4)
+    while (smallAsteroids.length < 4) {
+      const edge = Math.floor(Math.random() * 4);
+      let x, y;
+      if (edge === 0) { x = Math.random() * canvas.width; y = -50; }
+      else if (edge === 1) { x = canvas.width + 50; y = Math.random() * canvas.height; }
+      else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 50; }
+      else { x = -50; y = Math.random() * canvas.height; }
+      const size = Math.random() * 20 + 15; // Small: 15-35px
+      asteroids.push(createAsteroid(x, y, size));
+      smallAsteroids.push(asteroids[asteroids.length - 1]);
+    }
+    
+    // Remove excess large asteroids (keep max 3)
+    while (largeAsteroids.length > 3) {
+      const index = asteroids.indexOf(largeAsteroids[largeAsteroids.length - 1]);
+      if (index > -1) {
+        asteroids.splice(index, 1);
+        largeAsteroids.pop();
+      }
+    }
+  }
+  
+  // Update bullets
+  function updateBullets() {
+    bullets.forEach((bullet, index) => {
+      bullet.x += bullet.velocity.x;
+      bullet.y += bullet.velocity.y;
+      bullet.life--;
+      
+      // Check collision with other player in VS mode
+      if (window.getGameMode && window.getGameMode() === 'vs') {
+        const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
+        if (otherShip && !otherShip.exploded && bullet.owner === 'me') {
+          const dx = bullet.x - otherShip.x;
+          const dy = bullet.y - otherShip.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < otherShip.size) {
+            // Hit other player!
+            bullets.splice(index, 1);
+            createParticles(otherShip.x, otherShip.y, 15);
+            playSound('explosion');
+            
+            // Broadcast hit
+            if (window.broadcastPlayerHit) {
+              window.broadcastPlayerHit(window.getOtherPlayerId ? window.getOtherPlayerId() : null);
+            }
+            
+            score += 1000; // Big points for hitting player
+            console.log('Hit other player!');
+            return;
+          }
+        }
+      }
+      
+      if (bullet.life <= 0 || bullet.x < 0 || bullet.x > canvas.width || 
+          bullet.y < 0 || bullet.y > canvas.height) {
+        bullets.splice(index, 1);
+      }
+    });
+  }
+  
+  // Update particles
+  function updateParticles() {
+    particles.forEach((particle, index) => {
+      particle.x += particle.velocity.x;
+      particle.y += particle.velocity.y;
+      particle.life -= 0.02;
+      
+      if (particle.life <= 0) {
+        particles.splice(index, 1);
+      }
+    });
+  }
+  
+  // Draw functions
+  function drawStars() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    stars.forEach(star => {
+      ctx.globalAlpha = star.opacity;
+      ctx.fillRect(star.x, star.y, star.size, star.size);
+    });
+    ctx.globalAlpha = 1;
+  }
+  
+  function drawShip() {
+    if (ship.exploded) return; // Don't draw if exploded
+    
+    ctx.save();
+    ctx.translate(ship.x, ship.y);
+    ctx.rotate(ship.angle);
+    
+    // Draw energy forcefield if active
+    if (energyForcefield) {
+      const pulseIntensity = 0.5 + Math.sin(Date.now() / 200) * 0.3;
+      const forcefieldSize = largerForcefield ? ship.size + 15 : ship.size + 8;
+      const forcefieldColor = largerForcefield ? 'rgba(255, 100, 255, ' : 'rgba(100, 180, 255, ';
+      
+      ctx.strokeStyle = forcefieldColor + pulseIntensity + ')';
+      ctx.lineWidth = largerForcefield ? 4 : 3;
+      ctx.shadowColor = forcefieldColor + '0.8)';
+      ctx.shadowBlur = largerForcefield ? 30 : 20;
+      ctx.beginPath();
+      ctx.arc(0, 0, forcefieldSize, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    
+    // Ship body (triangle)
+    ctx.strokeStyle = 'rgba(126, 240, 163, 0.6)';
+    ctx.fillStyle = 'rgba(126, 240, 163, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ship.size, 0);
+    ctx.lineTo(-ship.size, -ship.size / 2);
+    ctx.lineTo(-ship.size, ship.size / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Thrust flames
+    if (ship.thrust) {
+      if (dualThruster) {
+        // Dual thruster flames (larger and brighter)
+        ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
+        ctx.shadowColor = 'rgba(255, 200, 50, 0.6)';
+        ctx.shadowBlur = 10;
+        // Top flame
+        ctx.beginPath();
+        ctx.moveTo(-ship.size, -ship.size / 2.5);
+        ctx.lineTo(-ship.size - 18, -ship.size / 4);
+        ctx.lineTo(-ship.size, -ship.size / 6);
+        ctx.closePath();
+        ctx.fill();
+        // Bottom flame
+        ctx.beginPath();
+        ctx.moveTo(-ship.size, ship.size / 2.5);
+        ctx.lineTo(-ship.size - 18, ship.size / 4);
+        ctx.lineTo(-ship.size, ship.size / 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else {
+        // Single thruster flame
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+        ctx.beginPath();
+        ctx.moveTo(-ship.size, -ship.size / 3);
+        ctx.lineTo(-ship.size - 10, 0);
+        ctx.lineTo(-ship.size, ship.size / 3);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    
+    ctx.restore();
+  }
+  
+  function drawAsteroids() {
+    asteroids.forEach(asteroid => {
+      ctx.save();
+      ctx.translate(asteroid.x, asteroid.y);
+      ctx.rotate(asteroid.angle);
+      
+      // Special asteroids have different appearance
+      if (asteroid.isRed) {
+        ctx.strokeStyle = 'rgba(255, 107, 107, 0.8)';
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(255, 107, 107, 0.6)';
+        ctx.shadowBlur = 15;
+      } else if (asteroid.isBlue) {
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.8)';
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.2)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
+        ctx.shadowBlur = 15;
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
+      }
+      
+      ctx.beginPath();
+      asteroid.points.forEach((point, i) => {
+        const x = Math.cos(point.angle) * asteroid.size * point.radius;
+        const y = Math.sin(point.angle) * asteroid.size * point.radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw prize word if present
+      if (asteroid.prizeWord) {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+        ctx.strokeStyle = 'rgba(50, 50, 50, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(asteroid.prizeWord, 0, 0);
+        ctx.fillText(asteroid.prizeWord, 0, 0);
+      }
+      
+      ctx.restore();
+    });
+    
+    ctx.shadowBlur = 0; // Reset shadow
+  }
+  
+  function drawBullets() {
+    ctx.fillStyle = 'rgba(126, 200, 255, 0.8)';
+    bullets.forEach(bullet => {
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  
+  function drawUfoBullets() {
+    ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
+    ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
+    ctx.shadowBlur = 10;
+    ufoBullets.forEach(bullet => {
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+  }
+  
+  function drawParticles() {
+    particles.forEach(particle => {
+      ctx.fillStyle = `rgba(255, 255, 255, ${particle.life * 0.6})`;
+      ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+    });
+  }
+  
+  // Draw HUD (score and lives)
+  function drawHUD() {
+    ctx.save();
+    ctx.shadowBlur = 0;
+    
+    // Score (top left)
+    ctx.fillStyle = 'rgba(126, 240, 163, 0.9)';
+    ctx.font = 'bold 24px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${score}`, 20, 40);
+    
+    // Game mode indicator
+    if (window.isMultiplayerActive && window.isMultiplayerActive()) {
+      const labelGameMode = window.getGameMode ? window.getGameMode() : 'coop';
+      ctx.fillStyle = labelGameMode === 'vs' ? 'rgba(255, 107, 107, 0.9)' : 'rgba(126, 240, 163, 0.9)';
+      ctx.font = 'bold 14px system-ui';
+      ctx.textAlign = 'left';
+      const modeText = labelGameMode === 'vs' ? '⚔️ VS MODE' : '🤝 CO-OP';
+      ctx.fillText(modeText, 20, 65);
+    }
+    
+    // Lives (top right) - draw ship icons
+    ctx.textAlign = 'right';
+    ctx.fillText('Lives:', canvas.width - 100, 40);
+    
+    // Powerup indicators
+    let powerupY = 70;
+    if (tripleCannon) {
+      ctx.fillStyle = 'rgba(255, 100, 255, 0.9)';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚡ TRIPLE CANNON (2X RANGE)', 20, powerupY);
+      powerupY += 30;
+    } else if (dualCannon) {
+      ctx.fillStyle = 'rgba(255, 200, 50, 0.9)';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚡ DUAL CANNON', 20, powerupY);
+      powerupY += 30;
+    }
+    if (dualThruster) {
+      const powerText = thrusterPower === 4 ? '4X POWER' : '2X POWER';
+      ctx.fillStyle = thrusterPower === 4 ? 'rgba(255, 50, 150, 0.9)' : 'rgba(255, 140, 50, 0.9)';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`🔥 SUPER THRUSTER (${powerText})`, 20, powerupY);
+      powerupY += 30;
+    }
+    if (energyForcefield) {
+      const forcefieldText = largerForcefield ? 'LARGER FORCEFIELD' : 'ENERGY FORCEFIELD';
+      ctx.fillStyle = largerForcefield ? 'rgba(255, 100, 255, 0.9)' : 'rgba(100, 180, 255, 0.9)';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`🛡️ ${forcefieldText}`, 20, powerupY);
+    }
+    
+    for (let i = 0; i < lives; i++) {
+      const x = canvas.width - 70 + (i * 25);
+      const y = 30;
+      
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = 'rgba(126, 240, 163, 0.8)';
+      ctx.fillStyle = 'rgba(126, 240, 163, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(10, 0);
+      ctx.lineTo(-8, -6);
+      ctx.lineTo(-8, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Game Over message
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.95)';
+      ctx.font = 'bold 64px system-ui';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(255, 107, 107, 0.8)';
+      ctx.shadowBlur = 20;
+      ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = 'bold 24px system-ui';
+      ctx.shadowBlur = 10;
+      ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      
+      // Draw 'Play Again' button
+      const btnX = canvas.width / 2;
+      const btnY = canvas.height / 2 + 90;
+      const btnWidth = 200;
+      const btnHeight = 50;
+      
+      // Check if mouse is hovering
+      const isHovering = window.playAgainHover || false;
+      
+      // Button background (red theme)
+      ctx.fillStyle = isHovering ? 'rgba(255, 107, 107, 1)' : 'rgba(220, 80, 80, 0.9)';
+      ctx.shadowBlur = isHovering ? 25 : 15;
+      ctx.shadowColor = isHovering ? 'rgba(255, 107, 107, 0.9)' : 'rgba(220, 80, 80, 0.7)';
+      ctx.fillRect(btnX - btnWidth / 2, btnY - btnHeight / 2, btnWidth, btnHeight);
+      
+      // Button border
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(btnX - btnWidth / 2, btnY - btnHeight / 2, btnWidth, btnHeight);
+      
+      // Button text
+      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+      ctx.font = 'bold 22px system-ui';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillText('PLAY AGAIN', btnX, btnY + 8);
+    }
+    
+    ctx.restore();
+  }
+  
+  // Main game loop
+  function gameLoop() {
+    // Clear canvas
+    ctx.fillStyle = 'rgba(8, 16, 26, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    if (!gamePaused) {
+      // Check game mode - disable spawning in VS mode
+      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+      const isVsMode = gameMode === 'vs';
+      
+      if (!isVsMode) {
+        // Spawn huge asteroid periodically (only in solo/coop)
+        const now = Date.now();
+        if (now - lastHugeAsteroidTime >= HUGE_ASTEROID_INTERVAL) {
+          spawnHugeAsteroid();
+          lastHugeAsteroidTime = now;
+        }
+        
+        // Spawn UFO randomly (only in solo/coop)
+        if (now - lastUfoTime >= nextUfoInterval) {
+          spawnUfo();
+          lastUfoTime = now;
+          nextUfoInterval = 20000 + Math.random() * 15000; // New random interval for next UFO
+        }
+        
+        // Spawn Alien rarely (only in solo/coop)
+        if (now - lastAlienTime >= nextAlienInterval) {
+          spawnAlien();
+          lastAlienTime = now;
+          nextAlienInterval = 45000 + Math.random() * 30000; // 45-75 seconds
+        }
+      }
+      
+      // Update
+      updateShipAI();
+      updateAsteroids();
+      updateAliens();
+      updateUfos();
+      updateUfoBullets();
+      updateBullets();
+      updateParticles();
+      
+      // Check for extra life milestone
+      if (score >= nextExtraLifeAt) {
+        lives++;
+        nextExtraLifeAt += 1000; // Next life at +1000 points
+        playSound('powerup');
+        console.log('🎉 EXTRA LIFE! Total lives: ' + lives);
+      }
+    }
+    
+    // Draw (always draw even when paused)
+    drawStars();
+    drawAsteroids();
+    drawAliens();
+    drawUfos();
+    drawUfoBullets();
+    drawShip();
+    drawBullets();
+    drawParticles();
+    drawHUD();
+    
+    requestAnimationFrame(gameLoop);
+  }
+  
+  // Start the game
+  gameLoop();
+  
+  // Expose pause state to global scope
+  window.getGamePaused = () => gamePaused;
+  window.setGamePaused = (paused) => { gamePaused = paused; };
+  window.getSoundEnabled = () => soundEnabled;
+  window.setSoundEnabled = (enabled) => { soundEnabled = enabled; };
+  window.getGameOver = () => gameOver;
+  window.getGameCanvas = () => canvas; // Expose canvas for Play Again button
+  
+  // Expose game objects for radar and multiplayer
+  window.getShip = () => ship;
+  window.getAsteroids = () => asteroids;
+  window.getUfos = () => ufos;
+  window.getAliens = () => aliens;
+  window.getBullets = () => bullets;
+  window.getUfoBullets = () => ufoBullets;
+})();
+
+// ===== PAUSE AND SOUND CONTROLS =====
+(function() {
+  const pauseBtn = document.getElementById('pauseBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const pauseOverlay = document.getElementById('pauseOverlay');
+  
+  // Pause button click
+  pauseBtn.addEventListener('click', function() {
+    togglePause();
+  });
+  
+  // Sound button click
+  soundBtn.addEventListener('click', function() {
+    toggleSound();
+  });
+  
+  // Play Again button (on game over)
+  window.playAgainHover = false;
+  
+  const gameCanvas = document.getElementById('asteroidCanvas');
+  
+  gameCanvas.addEventListener('mousemove', function(e) {
+    const rect = gameCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const gameOver = window.getGameOver ? window.getGameOver() : false;
+    if (gameOver) {
+      const btnX = gameCanvas.width / 2;
+      const btnY = gameCanvas.height / 2 + 90;
+      const btnWidth = 200;
+      const btnHeight = 50;
+      
+      const isInBounds = mouseX >= btnX - btnWidth / 2 && mouseX <= btnX + btnWidth / 2 &&
+                         mouseY >= btnY - btnHeight / 2 && mouseY <= btnY + btnHeight / 2;
+      
+      window.playAgainHover = isInBounds;
+      gameCanvas.style.cursor = isInBounds ? 'pointer' : 'default';
+    } else {
+      gameCanvas.style.cursor = 'default';
+    }
+  });
+  
+  gameCanvas.addEventListener('click', function(e) {
+    const rect = gameCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const gameOver = window.getGameOver ? window.getGameOver() : false;
+    console.log('Canvas clicked. GameOver:', gameOver, 'Mouse:', mouseX, mouseY);
+    
+    if (gameOver) {
+      const btnX = gameCanvas.width / 2;
+      const btnY = gameCanvas.height / 2 + 90;
+      const btnWidth = 200;
+      const btnHeight = 50;
+      
+      console.log('Button bounds:', {
+        x: btnX - btnWidth / 2, 
+        y: btnY - btnHeight / 2,
+        width: btnWidth,
+        height: btnHeight,
+        mouseX: mouseX,
+        mouseY: mouseY
+      });
+      
+      const isInBounds = mouseX >= btnX - btnWidth / 2 && mouseX <= btnX + btnWidth / 2 &&
+                         mouseY >= btnY - btnHeight / 2 && mouseY <= btnY + btnHeight / 2;
+      
+      console.log('Is in bounds:', isInBounds);
+      
+      if (isInBounds) {
+        console.log('Play Again button clicked - reloading...');
+        location.reload();
+      }
+    }
+  });
+  
+  // Keyboard pause toggle (P key when not in hyperspace mode)
+  let lastPauseKeyTime = 0;
+  const PAUSE_KEY_COOLDOWN = 300; // ms
+  
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      togglePause();
+    }
+  });
+  
+  function togglePause() {
+    const currentPaused = window.getGamePaused();
+    window.setGamePaused(!currentPaused);
+    
+    if (!currentPaused) {
+      // Pausing
+      pauseOverlay.classList.add('active');
+      pauseBtn.classList.add('active');
+      pauseBtn.textContent = '▶';
+      pauseBtn.title = 'Resume Game';
+    } else {
+      // Resuming
+      pauseOverlay.classList.remove('active');
+      pauseBtn.classList.remove('active');
+      pauseBtn.textContent = '⏸';
+      pauseBtn.title = 'Pause Game';
+    }
+  }
+  
+  function toggleSound() {
+    const currentSound = window.getSoundEnabled();
+    window.setSoundEnabled(!currentSound);
+    
+    if (!currentSound) {
+      // Enabling sound
+      soundBtn.classList.remove('muted');
+      soundBtn.textContent = '🔊';
+      soundBtn.title = 'Mute Sound Effects';
+    } else {
+      // Muting sound
+      soundBtn.classList.add('muted');
+      soundBtn.textContent = '🔇';
+      soundBtn.title = 'Enable Sound Effects';
+    }
+  }
+  
+  // P key for pause only (H is hyperspace)
+  document.addEventListener('keyup', function(e) {
+    const now = Date.now();
+    if ((e.key === 'p' || e.key === 'P') && now - lastPauseKeyTime > PAUSE_KEY_COOLDOWN) {
+      lastPauseKeyTime = now;
+      togglePause();
+    }
+  });
+})();
+
+// ===== RADAR SYSTEM =====
+(function() {
+  const radarCanvas = document.getElementById('radarCanvas');
+  const radarCtx = radarCanvas.getContext('2d');
+  const radarRadius = 100; // pixels
+  const radarRange = 400; // game units
+  let radarSweepAngle = 0;
+  
+  function drawRadar() {
+    const centerX = radarCanvas.width / 2;
+    const centerY = radarCanvas.height / 2;
+    
+    // Clear radar
+    radarCtx.fillStyle = 'rgba(8, 16, 26, 0.3)';
+    radarCtx.fillRect(0, 0, radarCanvas.width, radarCanvas.height);
+    
+    // Draw radar grid circles
+    radarCtx.strokeStyle = 'rgba(126, 200, 255, 0.2)';
+    radarCtx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      radarCtx.beginPath();
+      radarCtx.arc(centerX, centerY, (radarRadius * i) / 3, 0, Math.PI * 2);
+      radarCtx.stroke();
+    }
+    
+    // Draw crosshairs
+    radarCtx.beginPath();
+    radarCtx.moveTo(centerX, 0);
+    radarCtx.lineTo(centerX, radarCanvas.height);
+    radarCtx.moveTo(0, centerY);
+    radarCtx.lineTo(radarCanvas.width, centerY);
+    radarCtx.stroke();
+    
+    // Draw radar sweep
+    radarCtx.save();
+    radarCtx.translate(centerX, centerY);
+    radarCtx.rotate(radarSweepAngle);
+    
+    const gradient = radarCtx.createLinearGradient(0, 0, radarRadius, 0);
+    gradient.addColorStop(0, 'rgba(126, 240, 163, 0.6)');
+    gradient.addColorStop(1, 'rgba(126, 240, 163, 0)');
+    
+    radarCtx.fillStyle = gradient;
+    radarCtx.beginPath();
+    radarCtx.moveTo(0, 0);
+    radarCtx.arc(0, 0, radarRadius, 0, Math.PI / 6);
+    radarCtx.closePath();
+    radarCtx.fill();
+    
+    radarCtx.restore();
+    radarSweepAngle += 0.05;
+    
+    // Get game objects from exposed functions
+    const ship = window.getShip ? window.getShip() : null;
+    const asteroids = window.getAsteroids ? window.getAsteroids() : [];
+    const ufos = window.getUfos ? window.getUfos() : [];
+    const aliens = window.getAliens ? window.getAliens() : [];
+    
+    if (!ship) {
+      requestAnimationFrame(drawRadar);
+      return;
+    }
+    
+    // Draw ship at center (player) - only if not exploded
+    if (!ship.exploded) {
+      radarCtx.fillStyle = 'rgba(126, 240, 163, 0.9)';
+      radarCtx.beginPath();
+      radarCtx.arc(centerX, centerY, 3, 0, Math.PI * 2);
+      radarCtx.fill();
+    }
+    
+    // Draw red asteroids (prize asteroids)
+    asteroids.forEach(asteroid => {
+      if (!asteroid.isRed) return;
+        
+      const dx = asteroid.x - ship.x;
+      const dy = asteroid.y - ship.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > radarRange) return;
+      
+      const radarX = centerX + (dx / radarRange) * radarRadius;
+      const radarY = centerY + (dy / radarRange) * radarRadius;
+      
+      // Pulsing red dot for prize asteroids
+      const pulse = 0.6 + Math.sin(Date.now() / 200) * 0.4;
+      radarCtx.fillStyle = `rgba(255, 107, 107, ${pulse})`;
+      radarCtx.shadowColor = 'rgba(255, 107, 107, 0.8)';
+      radarCtx.shadowBlur = 8;
+      radarCtx.beginPath();
+      radarCtx.arc(radarX, radarY, 4, 0, Math.PI * 2);
+      radarCtx.fill();
+      radarCtx.shadowBlur = 0;
+    });
+    
+    // Draw blue asteroids (forcefield powerup)
+    asteroids.forEach(asteroid => {
+      if (!asteroid.isBlue) return;
+      
+      const dx = asteroid.x - ship.x;
+      const dy = asteroid.y - ship.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > radarRange) return;
+      
+      const radarX = centerX + (dx / radarRange) * radarRadius;
+      const radarY = centerY + (dy / radarRange) * radarRadius;
+      
+      // Pulsing blue dot for forcefield asteroids
+      const pulse = 0.6 + Math.sin(Date.now() / 200 + 1) * 0.4;
+      radarCtx.fillStyle = `rgba(100, 180, 255, ${pulse})`;
+      radarCtx.shadowColor = 'rgba(100, 180, 255, 0.8)';
+      radarCtx.shadowBlur = 8;
+      radarCtx.beginPath();
+      radarCtx.arc(radarX, radarY, 4, 0, Math.PI * 2);
+      radarCtx.fill();
+      radarCtx.shadowBlur = 0;
+    });
+    
+    // Draw UFOs (incoming craft)
+    ufos.forEach(ufo => {
+      const dx = ufo.x - ship.x;
+      const dy = ufo.y - ship.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > radarRange) return;
+      
+      const radarX = centerX + (dx / radarRange) * radarRadius;
+      const radarY = centerY + (dy / radarRange) * radarRadius;
+      
+      // Blinking yellow triangle for UFOs
+      const blink = Math.sin(Date.now() / 300) > 0;
+      if (blink) {
+        radarCtx.fillStyle = 'rgba(255, 200, 50, 0.9)';
+        radarCtx.shadowColor = 'rgba(255, 200, 50, 0.8)';
+        radarCtx.shadowBlur = 10;
+        radarCtx.beginPath();
+        radarCtx.moveTo(radarX, radarY - 5);
+        radarCtx.lineTo(radarX - 4, radarY + 3);
+        radarCtx.lineTo(radarX + 4, radarY + 3);
+        radarCtx.closePath();
+        radarCtx.fill();
+        radarCtx.shadowBlur = 0;
+      }
+    });
+    
+    // Draw Aliens (rare powerful targets)
+    aliens.forEach(alien => {
+      const dx = alien.x - ship.x;
+      const dy = alien.y - ship.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > radarRange) return;
+      
+      const radarX = centerX + (dx / radarRange) * radarRadius;
+      const radarY = centerY + (dy / radarRange) * radarRadius;
+      
+      // Pulsing purple/magenta star for aliens
+      const alienPulse = 0.7 + Math.sin(Date.now() / 150) * 0.3;
+      radarCtx.fillStyle = `rgba(255, 100, 255, ${alienPulse})`;
+      radarCtx.shadowColor = 'rgba(255, 100, 255, 0.9)';
+      radarCtx.shadowBlur = 12;
+      
+      // Draw star shape
+      radarCtx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const r = i % 2 === 0 ? 6 : 3;
+        const x = radarX + Math.cos(angle) * r;
+        const y = radarY + Math.sin(angle) * r;
+        if (i === 0) radarCtx.moveTo(x, y);
+        else radarCtx.lineTo(x, y);
+      }
+      radarCtx.closePath();
+      radarCtx.fill();
+      radarCtx.shadowBlur = 0;
+    });
+    
+    // Draw large asteroids (threats)
+    asteroids.forEach(asteroid => {
+      if (asteroid.isRed || asteroid.isBlue || asteroid.size < 60) return; // Skip special and small asteroids
+        
+        const dx = asteroid.x - ship.x;
+        const dy = asteroid.y - ship.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist > radarRange) return;
+        
+        const radarX = centerX + (dx / radarRange) * radarRadius;
+        const radarY = centerY + (dy / radarRange) * radarRadius;
+        
+        // Orange dot for large threatening asteroids
+        radarCtx.fillStyle = 'rgba(255, 160, 80, 0.7)';
+        radarCtx.beginPath();
+        radarCtx.arc(radarX, radarY, 3, 0, Math.PI * 2);
+        radarCtx.fill();
+    });
+    
+    requestAnimationFrame(drawRadar);
+  }
+  
+  // Start radar
+  drawRadar();
+})();
+
+// ===== SCREEN SAVER SYSTEM =====
+(function() {
+  const IDLE_TIME_MS = 300000; // 5 minutes
+  const overlay = document.getElementById('screenSaverOverlay');
+  const particlesContainer = document.getElementById('screensaverParticles');
+  const statusEl = document.getElementById('screensaverStatus');
+  
+  let idleTimer = null;
+  let isScreenSaverActive = false;
+  let lastActivityTime = Date.now();
+  
+  // Create floating particles for screen saver
+  function createParticles() {
+    particlesContainer.innerHTML = '';
+    for (let i = 0; i < 30; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'screensaver-particle';
+      
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const duration = 8 + Math.random() * 12;
+      const delay = Math.random() * 5;
+      const size = 1 + Math.random() * 3;
+      
+      particle.style.left = x + '%';
+      particle.style.top = y + '%';
+      particle.style.width = size + 'px';
+      particle.style.height = size + 'px';
+      particle.style.animation = `float ${duration}s linear ${delay}s infinite`;
+      
+      particlesContainer.appendChild(particle);
+    }
+  }
+  
+  // Update screen saver status with live data
+  function updateScreenSaverStatus() {
+    const magEl = document.getElementById('currentMag');
+    const distEl = document.getElementById('distanceValue');
+    
+    if (magEl && distEl) {
+      const mag = magEl.textContent;
+      const dist = distEl.textContent;
+      statusEl.textContent = `Magnitude: ${mag} | Distance: ${dist} km`;
+    }
+  }
+  
+  // Activate screen saver
+  function activateScreenSaver() {
+    if (isScreenSaverActive) return;
+    
+    isScreenSaverActive = true;
+    overlay.classList.add('active');
+    createParticles();
+    updateScreenSaverStatus();
+    
+    // Update status every 10 seconds
+    const statusInterval = setInterval(() => {
+      if (isScreenSaverActive) {
+        updateScreenSaverStatus();
+      } else {
+        clearInterval(statusInterval);
+      }
+    }, 10000);
+    
+    console.log('Screen saver activated');
+  }
+  
+  // Deactivate screen saver
+  function deactivateScreenSaver() {
+    if (!isScreenSaverActive) return;
+    
+    isScreenSaverActive = false;
+    overlay.classList.remove('active');
+    particlesContainer.innerHTML = '';
+    
+    console.log('Screen saver deactivated');
+  }
+  
+  // Reset idle timer
+  function resetIdleTimer() {
+    lastActivityTime = Date.now();
+    
+    if (isScreenSaverActive) {
+      deactivateScreenSaver();
+    }
+    
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      activateScreenSaver();
+    }, IDLE_TIME_MS);
+  }
+  
+  // Activity listeners
+  const activityEvents = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'click', 'scroll'];
+  
+  activityEvents.forEach(event => {
+    document.addEventListener(event, resetIdleTimer, true);
+  });
+  
+  // Initialize timer on page load
+  resetIdleTimer();
+  
+  // Expose screen saver control to window for manual toggling
+  window.screenSaver = {
+    activate: activateScreenSaver,
+    deactivate: deactivateScreenSaver,
+    toggle: () => {
+      if (isScreenSaverActive) {
+        deactivateScreenSaver();
+      } else {
+        activateScreenSaver();
+      }
+    },
+    isActive: () => isScreenSaverActive,
+    setIdleTime: (ms) => {
+      IDLE_TIME_MS = ms;
+      resetIdleTimer();
+    }
+  };
+  
+  console.log('Screen saver system initialized. Idle timeout: ' + (IDLE_TIME_MS / 1000 / 60) + ' minutes');
+})();
+
+// ===== 2-PLAYER CO-OP SYSTEM =====
+(function() {
+  let ws = null;
+  let myPlayerId = null;
+  let otherPlayerId = null;
+  let isMultiplayer = false;
+  let isHost = false;
+  let gameMode = 'solo'; // 'solo', 'coop', 'vs'
+  let otherPlayerShip = null;
+  let otherPlayerTargetState = null; // Target state for interpolation
+  let lastUpdateTime = Date.now();
+  
+  const lobbyOverlay = document.getElementById('lobbyOverlay');
+  const lobbyStatus = document.getElementById('lobbyStatus');
+  const soloPlayBtn = document.getElementById('soloPlayBtn');
+  const coopPlayBtn = document.getElementById('coopPlayBtn');
+  const joinRequestOverlay = document.getElementById('joinRequestOverlay');
+  const acceptJoinBtn = document.getElementById('acceptJoinBtn');
+  const declineJoinBtn = document.getElementById('declineJoinBtn');
+  
+  let pendingJoinRequest = null;
+  
+  // Connect to WebSocket server
+  function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? 'localhost:3000' 
+      : window.location.host;
+    
+    ws = new WebSocket(`${protocol}//${host}`);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      lobbyStatus.textContent = 'Connected to multiplayer server';
+    };
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      handleWebSocketMessage(data);
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      lobbyStatus.textContent = 'Connection error - Playing solo';
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      if (isMultiplayer) {
+        // Show notification that other player left
+        console.log('Multiplayer session ended');
+        isMultiplayer = false;
+        otherPlayerShip = null;
+      }
+    };
+  }
+  
+  function handleWebSocketMessage(data) {
+    switch(data.type) {
+      case 'connected':
+        myPlayerId = data.playerId;
+        isHost = data.isFirstPlayer;
+        console.log(`Connected as ${myPlayerId} (${isHost ? 'Host' : 'Guest'})`);
+        
+        if (data.otherPlayers && data.otherPlayers.length > 0) {
+          lobbyStatus.textContent = 'Another player is online!';
+          coopPlayBtn.disabled = false;
+          vsPlayBtn.disabled = false;
+          otherPlayerId = data.otherPlayers[0];
+        } else {
+          lobbyStatus.textContent = 'Waiting for other players...';
+          coopPlayBtn.disabled = true;
+          vsPlayBtn.disabled = true;
+        }
+        break;
+        
+      case 'player_available':
+        if (!isMultiplayer) {
+          otherPlayerId = data.playerId;
+          lobbyStatus.textContent = 'Another player is online!';
+          coopPlayBtn.disabled = false;
+          vsPlayBtn.disabled = false;
+        }
+        break;
+        
+      case 'join_request':
+        // Another player wants to join our game
+        if (!isMultiplayer) {
+          pendingJoinRequest = data.playerId;
+          const mode = data.mode || 'coop';
+          const joinRequestMessage = document.getElementById('joinRequestMessage');
+          const joinRequestMode = document.getElementById('joinRequestMode');
+          
+          if (mode === 'vs') {
+            joinRequestMessage.textContent = 'Another player wants to battle you!';
+            joinRequestMode.textContent = '⚔️ VS MODE (PvP)';
+            joinRequestMode.style.color = '#ff6b6b';
+          } else {
+            joinRequestMessage.textContent = 'Another player wants to join your game!';
+            joinRequestMode.textContent = '🤝 CO-OP MODE';
+            joinRequestMode.style.color = '#7ef0a3';
+          }
+          
+          pendingJoinRequestMode = mode;
+          joinRequestOverlay.classList.add('active');
+        }
+        break;
+        
+      case 'join_response':
+        if (data.accepted) {
+          startMultiplayerGame(data.playerId, data.mode || 'coop');
+        } else {
+          alert('Join request declined');
+          lobbyOverlay.classList.add('active');
+        }
+        break;
+        
+      case 'player_state':
+        // Update other player's ship with interpolation
+        if (data.playerId !== myPlayerId && isMultiplayer) {
+          if (!otherPlayerShip) {
+            otherPlayerShip = {
+              x: data.state.x,
+              y: data.state.y,
+              angle: data.state.angle,
+              velocity: data.state.velocity,
+              exploded: data.state.exploded,
+              size: 15,
+              thrust: data.state.thrust || false
+            };
+            otherPlayerTargetState = { ...data.state };
+          } else {
+            // Set target state for smooth interpolation
+            otherPlayerTargetState = { ...data.state };
+            lastUpdateTime = Date.now();
+          }
+        }
+        break;
+        
+      case 'game_state':
+        // Sync game state from host (if we're not host)
+        if (!isHost && isMultiplayer) {
+          // Update asteroids, bullets, etc. from host
+          const gameAsteroids = window.getAsteroids();
+          const gameBullets = window.getBullets ? window.getBullets() : [];
+          
+          if (gameAsteroids && data.gameState.asteroids) {
+            gameAsteroids.length = 0;
+            gameAsteroids.push(...data.gameState.asteroids);
+          }
+        }
+        break;
+        
+      case 'bullet_fired':
+        // Another player fired a bullet
+        if (data.playerId !== myPlayerId && isMultiplayer) {
+          const gameBullets = window.getBullets ? window.getBullets() : [];
+          if (gameBullets && data.bullet) {
+            // Mark bullet as from other player for VS mode collision detection
+            data.bullet.owner = 'other';
+            gameBullets.push(data.bullet);
+            playSound('shoot'); // Play sound for other player's shots
+          }
+        }
+        break;
+        
+      case 'powerup_sync':
+        // Sync powerups in co-op mode
+        if (gameMode === 'coop' && data.playerId !== myPlayerId) {
+          if (window.syncPowerups) {
+            window.syncPowerups(data.powerups);
+          }
+        }
+        break;
+        
+      case 'player_hit':
+        // In VS mode, other player hit us
+        if (gameMode === 'vs' && data.targetId === myPlayerId) {
+          if (window.handlePlayerHit) {
+            window.handlePlayerHit();
+          }
+        }
+        break;
+        
+      case 'player_disconnected':
+        if (data.playerId === otherPlayerId) {
+          console.log('Other player disconnected');
+          isMultiplayer = false;
+          otherPlayerShip = null;
+          otherPlayerId = null;
+        }
+        break;
+    }
+  }
+  
+  function startMultiplayerGame(partnerPlayerId, mode) {
+    isMultiplayer = true;
+    gameMode = mode || 'coop';
+    otherPlayerId = partnerPlayerId;
+    lobbyOverlay.classList.remove('active');
+    joinRequestOverlay.classList.remove('active');
+    console.log(`Starting ${gameMode.toUpperCase()} game with ${partnerPlayerId}`);
+    
+    // Initialize other player ship
+    otherPlayerShip = {
+      x: canvas.width / 2 + 100,
+      y: canvas.height / 2,
+      angle: Math.PI,
+      velocity: { x: 0, y: 0 },
+      exploded: false,
+      size: 15,
+      thrust: false,
+      lives: 3,
+      score: 0
+    };
+  }
+  
+  // Button handlers
+  const vsPlayBtn = document.getElementById('vsPlayBtn');
+  let pendingJoinRequestMode = 'coop';
+  
+  soloPlayBtn.addEventListener('click', () => {
+    gameMode = 'solo';
+    lobbyOverlay.classList.remove('active');
+    console.log('Starting solo game');
+  });
+  
+  coopPlayBtn.addEventListener('click', () => {
+    if (otherPlayerId && ws && ws.readyState === WebSocket.OPEN) {
+      // Send join request for co-op
+      ws.send(JSON.stringify({
+        type: 'join_request',
+        targetPlayerId: otherPlayerId,
+        mode: 'coop'
+      }));
+      lobbyStatus.textContent = 'Sending co-op request...';
+      coopPlayBtn.disabled = true;
+      vsPlayBtn.disabled = true;
+    }
+  });
+  
+  vsPlayBtn.addEventListener('click', () => {
+    if (otherPlayerId && ws && ws.readyState === WebSocket.OPEN) {
+      // Send join request for VS mode
+      ws.send(JSON.stringify({
+        type: 'join_request',
+        targetPlayerId: otherPlayerId,
+        mode: 'vs'
+      }));
+      lobbyStatus.textContent = 'Sending VS challenge...';
+      coopPlayBtn.disabled = true;
+      vsPlayBtn.disabled = true;
+    }
+  });
+  
+  acceptJoinBtn.addEventListener('click', () => {
+    if (pendingJoinRequest && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'join_response',
+        requestingPlayerId: pendingJoinRequest,
+        accepted: true,
+        mode: pendingJoinRequestMode
+      }));
+      startMultiplayerGame(pendingJoinRequest, pendingJoinRequestMode);
+      pendingJoinRequest = null;
+    }
+  });
+  
+  declineJoinBtn.addEventListener('click', () => {
+    if (pendingJoinRequest && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'join_response',
+        requestingPlayerId: pendingJoinRequest,
+        accepted: false
+      }));
+      joinRequestOverlay.classList.remove('active');
+      pendingJoinRequest = null;
+    }
+  });
+  
+  // Send state updates periodically
+  setInterval(() => {
+    if (isMultiplayer && ws && ws.readyState === WebSocket.OPEN) {
+      const ship = window.getShip ? window.getShip() : null;
+      if (ship) {
+        ws.send(JSON.stringify({
+          type: 'state_update',
+          state: {
+            x: ship.x,
+            y: ship.y,
+            angle: ship.angle,
+            velocity: ship.velocity,
+            exploded: ship.exploded,
+            thrust: ship.thrust
+          }
+        }));
+      }
+      
+      // Sync powerups in co-op mode
+      if (gameMode === 'coop') {
+        const powerups = window.getPowerups ? window.getPowerups() : null;
+        if (powerups) {
+          ws.send(JSON.stringify({
+            type: 'powerup_sync',
+            powerups: powerups
+          }));
+        }
+      }
+      
+      // If host, sync game state
+      if (isHost) {
+        const asteroids = window.getAsteroids ? window.getAsteroids() : [];
+        ws.send(JSON.stringify({
+          type: 'game_sync',
+          gameState: {
+            asteroids: asteroids
+          }
+        }));
+      }
+    }
+  }, 50); // 20 times per second for smoother sync
+  
+  // Interpolate other player's position for smooth movement
+  setInterval(() => {
+    if (isMultiplayer && otherPlayerShip && otherPlayerTargetState) {
+      const lerpFactor = 0.3; // Interpolation speed (0-1, higher = faster)
+      
+      // Lerp position
+      otherPlayerShip.x += (otherPlayerTargetState.x - otherPlayerShip.x) * lerpFactor;
+      otherPlayerShip.y += (otherPlayerTargetState.y - otherPlayerShip.y) * lerpFactor;
+      
+      // Lerp angle (handle wrapping)
+      let angleDiff = otherPlayerTargetState.angle - otherPlayerShip.angle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      otherPlayerShip.angle += angleDiff * lerpFactor;
+      
+      // Update other properties
+      otherPlayerShip.thrust = otherPlayerTargetState.thrust;
+      otherPlayerShip.exploded = otherPlayerTargetState.exploded;
+    }
+  }, 16); // ~60fps interpolation
+  
+  // Expose multiplayer functions
+  window.getOtherPlayerShip = () => otherPlayerShip;
+  window.isMultiplayerActive = () => isMultiplayer;
+  window.getGameMode = () => gameMode;
+  window.getMyPlayerId = () => myPlayerId;
+  window.getOtherPlayerId = () => otherPlayerId;
+  
+  // Broadcast bullet function
+  window.broadcastBullet = (bullet) => {
+    if (isMultiplayer && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'bullet_fired',
+        bullet: bullet
+      }));
+    }
+  };
+  
+  // Broadcast player hit in VS mode
+  window.broadcastPlayerHit = (targetPlayerId) => {
+    if (isMultiplayer && gameMode === 'vs' && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'player_hit',
+        targetId: targetPlayerId
+      }));
+    }
+  };
+  
+  // Show lobby on page load
+  lobbyOverlay.classList.add('active');
+  
+  // Connect to WebSocket
+  connectWebSocket();
+})();
+
+// ===== MODIFY GAME TO SUPPORT 2 PLAYERS =====
+(function() {
+  // Override the ship drawing function to draw both players
+  const originalGameLoop = window.gameLoop;
+  
+  // Draw other player's ship
+  function drawOtherPlayerShip() {
+    const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
+    if (!otherShip || otherShip.exploded || !window.isMultiplayerActive()) return;
+    
+    const canvas = document.getElementById('asteroidCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    ctx.save();
+    ctx.translate(otherShip.x, otherShip.y);
+    ctx.rotate(otherShip.angle);
+    
+    // Ship body (triangle) - different color for player 2
+    const shipGameMode = window.getGameMode ? window.getGameMode() : 'coop';
+    const isVsMode = shipGameMode === 'vs';
+    
+    ctx.strokeStyle = isVsMode ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 200, 100, 0.6)';
+    ctx.fillStyle = isVsMode ? 'rgba(255, 107, 107, 0.1)' : 'rgba(255, 200, 100, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(otherShip.size, 0);
+    ctx.lineTo(-otherShip.size, -otherShip.size / 2);
+    ctx.lineTo(-otherShip.size, otherShip.size / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Thrust flames
+    if (otherShip.thrust) {
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(-otherShip.size, -otherShip.size / 3);
+      ctx.lineTo(-otherShip.size - 10, 0);
+      ctx.lineTo(-otherShip.size, otherShip.size / 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    ctx.restore();
+    
+    // Draw player 2 indicator
+    const labelGameMode = window.getGameMode ? window.getGameMode() : 'coop';
+    const isVsModeLabel = labelGameMode === 'vs';
+    
+    ctx.fillStyle = isVsModeLabel ? 'rgba(255, 107, 107, 0.9)' : 'rgba(255, 200, 100, 0.9)';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    const label = isVsModeLabel ? 'ENEMY' : 'P2';
+    ctx.fillText(label, otherShip.x, otherShip.y - 25);
+  }
+  
+  // Inject into game loop
+  const canvas = document.getElementById('asteroidCanvas');
+  const originalRequestAnimationFrame = window.requestAnimationFrame;
+  
+  // Add to existing game render cycle
+  setInterval(() => {
+    if (window.isMultiplayerActive && window.isMultiplayerActive()) {
+      drawOtherPlayerShip();
+    }
+  }, 16); // ~60fps
+})();
+
+</script>
+
+</body>
+</html>

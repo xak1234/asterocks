@@ -1,0 +1,19 @@
+{
+  "name": "3i-atlas-tracker",
+  "version": "1.0.0",
+  "description": "3I/ATLAS Tracker - Live spaceship tracking with TheSkyLive and COBS data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm install"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "ws": "^8.14.2"
+  }
+}
