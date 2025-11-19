@@ -1226,7 +1226,9 @@
     'b': false, // Bomb drop
     'B': false, // Bomb drop (uppercase)
     'h': false, // Hyperspace
-    'H': false  // Hyperspace (uppercase)
+    'H': false, // Hyperspace (uppercase)
+    's': false, // Heat seeker
+    'S': false  // Heat seeker (uppercase)
   };
 
   // Listen for keyboard events
@@ -1632,6 +1634,8 @@ function playSound(soundName) {
   const LASER_WIDTH = 4;
   const LASER_LIFE = 90;
   const LASER_MUZZLE_OFFSET = ship.size * 1.8;
+  const LASER_BEAM_COUNT = 3;
+  const LASER_SPREAD = 0.08; // Radians between adjacent laser jets
   let vsKills = 0; // Kill counter for VS mode
   let playerKills = 0; // Battle Royale kills counter
   let playerDeaths = 0; // Battle Royale deaths counter
@@ -1647,6 +1651,8 @@ function playSound(soundName) {
     { type: 'laserCanon', color: 'rgba(255, 80, 200, ', icon: '🔫', name: 'LASER' },
     { type: 'heatSeeker', color: 'rgba(255, 200, 120, ', icon: '🎯', name: 'SEEKER' }
   ];
+  const SUPER_BONUS_EXPANSION_TIME = 5000;
+  const SUPER_BONUS_SHRINK_TIME = 4000;
   
   // Create background stars - fills entire window
   function generateStarfield() {
@@ -1692,10 +1698,31 @@ function playSound(soundName) {
       icon: bonusType.icon,
       name: bonusType.name,
       pulsePhase: Math.random() * Math.PI * 2,
-      size: 20,
+      baseSize: 20,
       createdAt: Date.now(),
-      ttl: 5000
+      ttl: 5000,
+      expirePhase: 'active',
+      expireStart: null
     });
+  }
+
+  function getSuperBonusVisualState(bonus, now) {
+    let scale = 1;
+    let fade = 1;
+
+    if (bonus.expirePhase === 'expanding' && bonus.expireStart) {
+      const progress = Math.min((now - bonus.expireStart) / SUPER_BONUS_EXPANSION_TIME, 1);
+      scale = 1 + progress;
+    } else if (bonus.expirePhase === 'shrinking' && bonus.expireStart) {
+      const progress = Math.min((now - bonus.expireStart) / SUPER_BONUS_SHRINK_TIME, 1);
+      scale = Math.max(0, 2 - progress * 2);
+      fade = Math.max(0, 1 - progress);
+    }
+
+    return {
+      radius: bonus.baseSize * scale,
+      alpha: fade
+    };
   }
   
   // Update Super Bonuses
@@ -1708,15 +1735,30 @@ function playSound(soundName) {
     // Check for collection or expiration
     for (let i = superBonuses.length - 1; i >= 0; i--) {
       const bonus = superBonuses[i];
-      if (bonus.createdAt && bonus.ttl && now - bonus.createdAt >= bonus.ttl) {
-        superBonuses.splice(i, 1);
-        continue;
+      if (bonus.expirePhase === 'active' && bonus.createdAt && now - bonus.createdAt >= bonus.ttl) {
+        bonus.expirePhase = 'expanding';
+        bonus.expireStart = now;
+      } else if (bonus.expirePhase === 'expanding' && bonus.expireStart) {
+        const progress = (now - bonus.expireStart) / SUPER_BONUS_EXPANSION_TIME;
+        if (progress >= 1) {
+          bonus.expirePhase = 'shrinking';
+          bonus.expireStart = now;
+        }
+      } else if (bonus.expirePhase === 'shrinking' && bonus.expireStart) {
+        const progress = (now - bonus.expireStart) / SUPER_BONUS_SHRINK_TIME;
+        if (progress >= 1) {
+          superBonuses.splice(i, 1);
+          continue;
+        }
       }
+
+      const { radius: currentRadius } = getSuperBonusVisualState(bonus, now);
+      const effectiveRadius = currentRadius || bonus.baseSize;
       const dx = ship.x - bonus.x;
       const dy = ship.y - bonus.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance < ship.size + bonus.size) {
+      if (distance < ship.size + effectiveRadius) {
         // Collect the bonus
         if (bonus.type === 'dualCannon') {
           dualCannon = true;
@@ -1767,48 +1809,52 @@ function playSound(soundName) {
   function drawSuperBonuses() {
     const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
     if (gameMode !== 'anyplayer') return;
-    
+
+    const now = Date.now();
     superBonuses.forEach(bonus => {
+      const { radius, alpha } = getSuperBonusVisualState(bonus, now);
+      if (!radius || alpha <= 0) return;
       bonus.pulsePhase += 0.05;
       const pulse = Math.sin(bonus.pulsePhase) * 0.3 + 0.7;
-      const glowSize = bonus.size + Math.sin(bonus.pulsePhase * 2) * 5;
-      
+      const glowSize = Math.max(1, radius + Math.sin(bonus.pulsePhase * 2) * 5);
+      const visiblePulse = Math.min(1, pulse * alpha);
+
       ctx.save();
-      
+
       // Outer glow
       const gradient = ctx.createRadialGradient(bonus.x, bonus.y, 0, bonus.x, bonus.y, glowSize);
-      gradient.addColorStop(0, bonus.color + (pulse * 0.8) + ')');
-      gradient.addColorStop(0.5, bonus.color + (pulse * 0.4) + ')');
+      gradient.addColorStop(0, bonus.color + (visiblePulse * 0.8) + ')');
+      gradient.addColorStop(0.5, bonus.color + (visiblePulse * 0.4) + ')');
       gradient.addColorStop(1, bonus.color + '0)');
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(bonus.x, bonus.y, glowSize, 0, Math.PI * 2);
       ctx.fill();
-      
+
       // Core circle
-      ctx.fillStyle = bonus.color + pulse + ')';
-      ctx.strokeStyle = 'rgba(255, 255, 255, ' + pulse + ')';
+      ctx.fillStyle = bonus.color + visiblePulse + ')';
+      ctx.strokeStyle = 'rgba(255, 255, 255, ' + visiblePulse + ')';
       ctx.lineWidth = 2;
       ctx.shadowColor = bonus.color + '0.8)';
       ctx.shadowBlur = 15;
       ctx.beginPath();
-      ctx.arc(bonus.x, bonus.y, bonus.size * pulse, 0, Math.PI * 2);
+      ctx.arc(bonus.x, bonus.y, radius * pulse, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       ctx.shadowBlur = 0;
-      
+
       // Icon
       ctx.font = 'bold 20px system-ui';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255, 255, 255, ' + pulse + ')';
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + visiblePulse + ')';
       ctx.fillText(bonus.icon, bonus.x, bonus.y);
-      
+
       // Label below
       ctx.font = 'bold 10px system-ui';
-      ctx.fillStyle = 'rgba(255, 255, 255, ' + (pulse * 0.8) + ')';
-      ctx.fillText(bonus.name, bonus.x, bonus.y + bonus.size + 15);
-      
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (visiblePulse * 0.8) + ')';
+      ctx.fillText(bonus.name, bonus.x, bonus.y + radius + 15);
+
       ctx.restore();
     });
   }
@@ -2878,28 +2924,37 @@ function playSound(soundName) {
       const now = Date.now();
       if (laserCanon) {
         if (firePressed && now - lastLaserShot >= LASER_COOLDOWN) {
-          const dirX = Math.cos(ship.angle);
-          const dirY = Math.sin(ship.angle);
-          const startX = ship.x + dirX * LASER_MUZZLE_OFFSET;
-          const startY = ship.y + dirY * LASER_MUZZLE_OFFSET;
-          const laser = {
-            type: 'laser',
-            x: startX,
-            y: startY,
-            velocity: {
-              x: dirX * LASER_SPEED,
-              y: dirY * LASER_SPEED
-            },
-            dirX,
-            dirY,
-            length: LASER_LENGTH,
-            width: LASER_WIDTH,
-            life: LASER_LIFE,
-            owner: 'me'
-          };
-          bullets.push(laser);
-          if (window.broadcastBullet) {
-            window.broadcastBullet(laser);
+          const beamCount = Math.max(1, LASER_BEAM_COUNT);
+          const midIndex = (beamCount - 1) / 2;
+          const normalAngle = ship.angle + Math.PI / 2;
+          for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+            const offsetIndex = beamIndex - midIndex;
+            const angleOffset = offsetIndex * LASER_SPREAD;
+            const beamAngle = ship.angle + angleOffset;
+            const dirX = Math.cos(beamAngle);
+            const dirY = Math.sin(beamAngle);
+            const lateralOffset = offsetIndex * ship.size * 0.4;
+            const startX = ship.x + Math.cos(beamAngle) * LASER_MUZZLE_OFFSET + Math.cos(normalAngle) * lateralOffset;
+            const startY = ship.y + Math.sin(beamAngle) * LASER_MUZZLE_OFFSET + Math.sin(normalAngle) * lateralOffset;
+            const laser = {
+              type: 'laser',
+              x: startX,
+              y: startY,
+              velocity: {
+                x: dirX * LASER_SPEED,
+                y: dirY * LASER_SPEED
+              },
+              dirX,
+              dirY,
+              length: LASER_LENGTH,
+              width: LASER_WIDTH,
+              life: LASER_LIFE,
+              owner: 'me'
+            };
+            bullets.push(laser);
+            if (window.broadcastBullet) {
+              window.broadcastBullet(laser);
+            }
           }
           lastLaserShot = now;
           playSound('laser');
