@@ -1,4 +1,4 @@
-// server.js - 3I/ATLAS Tracker server with background cache and 2-player co-op
+// server.js - Asterocks multiplayer server with WebSocket support
 // Requires: express, cheerio, cors, ws
 // Uses native Node.js fetch (available in Node 18+)
 const express = require('express');
@@ -192,7 +192,7 @@ async function refreshDistance(){
 
 // Endpoints
 app.get('/api/test', rateLimit, (req,res)=>{
-  res.json({ ok:true, server:'3I-ATLAS-Tracker', timestamp:new Date().toISOString(), note:'Test endpoint' });
+  res.json({ ok:true, server:'Asterocks-Server', timestamp:new Date().toISOString(), note:'Test endpoint' });
 });
 
 // Return cached/latest reading
@@ -222,8 +222,9 @@ app.get('/api/cobs', rateLimit, async (req,res)=>{
   res.json(result);
 });
 
-// ===== 2-PLAYER CO-OP WEBSOCKET SYSTEM =====
-let players = {}; // { playerId: { ws, state, playerId } }
+// ===== MULTIPLAYER WEBSOCKET SYSTEM (CO-OP, VS, ANYPLAYER) =====
+let players = {}; // { playerId: { ws, state, playerId, mode } }
+let anyPlayerLobby = []; // Players in anyplayer/battle royale mode
 let gameState = {
   asteroids: [],
   bullets: [],
@@ -288,15 +289,35 @@ wss.on('connection', (ws) => {
           handleJoinResponse(playerId, data);
           break;
           
+        case 'join_anyplayer':
+          // Player wants to join anyplayer/battle royale mode
+          handleJoinAnyPlayer(playerId);
+          break;
+          
         case 'state_update':
           // Update player state
           if (players[playerId]) {
             players[playerId].state = data.state;
-            broadcastToOthers(playerId, {
-              type: 'player_state',
-              playerId,
-              state: data.state
-            });
+            
+            // In anyplayer mode, broadcast to all in lobby
+            if (players[playerId].mode === 'anyplayer') {
+              anyPlayerLobby.forEach(pId => {
+                if (pId !== playerId && players[pId]) {
+                  players[pId].ws.send(JSON.stringify({
+                    type: 'player_state',
+                    playerId,
+                    state: data.state
+                  }));
+                }
+              });
+            } else {
+              // Regular 2-player mode
+              broadcastToOthers(playerId, {
+                type: 'player_state',
+                playerId,
+                state: data.state
+              });
+            }
           }
           break;
           
@@ -335,6 +356,70 @@ wss.on('connection', (ws) => {
             targetId: data.targetId
           });
           break;
+          
+        case 'bomb_dropped':
+          // Broadcast bomb drop to all players (anyplayer mode or VS mode)
+          const playerMode = players[playerId]?.mode || 'unknown';
+          console.log(`💣 Player ${playerId} (mode: ${playerMode}) dropped bomb`);
+          
+          if (playerMode === 'anyplayer') {
+            console.log(`  Broadcasting to ${anyPlayerLobby.length - 1} anyplayer lobby members`);
+            anyPlayerLobby.forEach(pid => {
+              if (pid !== playerId && players[pid]) {
+                players[pid].ws.send(JSON.stringify({
+                  type: 'bomb_dropped',
+                  bomb: data.bomb
+                }));
+                console.log(`  → Sent to ${pid}`);
+              }
+            });
+          } else {
+            // VS mode, coop, or any other mode - broadcast to all other players
+            console.log(`  Broadcasting to all other connected players`);
+            let sentCount = 0;
+            Object.keys(players).forEach(pid => {
+              if (pid !== playerId && players[pid]) {
+                players[pid].ws.send(JSON.stringify({
+                  type: 'bomb_dropped',
+                  bomb: data.bomb
+                }));
+                console.log(`  → Sent to ${pid}`);
+                sentCount++;
+              }
+            });
+            console.log(`  Total sent: ${sentCount}`);
+          }
+          break;
+          
+        case 'bomb_destroyed':
+          // Broadcast bomb destruction to all players
+          if (players[playerId].mode === 'anyplayer') {
+            anyPlayerLobby.forEach(pid => {
+              if (pid !== playerId && players[pid]) {
+                players[pid].ws.send(JSON.stringify({
+                  type: 'bomb_destroyed',
+                  bombIndex: data.bombIndex
+                }));
+              }
+            });
+          } else {
+            broadcastToOthers(playerId, {
+              type: 'bomb_destroyed',
+              bombIndex: data.bombIndex
+            });
+          }
+          break;
+          
+        case 'bomb_kill':
+          // Notify the bomber they got a kill
+          if (data.bomber && players[data.bomber]) {
+            players[data.bomber].ws.send(JSON.stringify({
+              type: 'bomb_kill',
+              victim: data.victim,
+              bomber: data.bomber
+            }));
+          }
+          break;
       }
     } catch (e) {
       console.error('WebSocket message error:', e);
@@ -343,6 +428,14 @@ wss.on('connection', (ws) => {
   
   ws.on('close', () => {
     console.log(`Player ${playerId} disconnected`);
+    
+    // Remove from anyplayer lobby if in it
+    const lobbyIndex = anyPlayerLobby.indexOf(playerId);
+    if (lobbyIndex > -1) {
+      anyPlayerLobby.splice(lobbyIndex, 1);
+      console.log(`Removed ${playerId} from anyplayer lobby. Remaining: ${anyPlayerLobby.length}`);
+    }
+    
     delete players[playerId];
     
     // Notify other players
@@ -372,13 +465,51 @@ function handleJoinRequest(playerId, data) {
 function handleJoinResponse(playerId, data) {
   const requestingPlayerId = data.requestingPlayerId;
   if (players[requestingPlayerId]) {
+    const mode = data.mode || 'coop';
+    
+    // Set mode for both players
+    if (data.accepted) {
+      players[playerId].mode = mode;
+      players[requestingPlayerId].mode = mode;
+      console.log(`Players ${playerId} and ${requestingPlayerId} starting ${mode} mode`);
+    }
+    
     players[requestingPlayerId].ws.send(JSON.stringify({
       type: 'join_response',
       accepted: data.accepted,
       playerId: playerId,
-      mode: data.mode || 'coop'
+      mode: mode
     }));
   }
+}
+
+function handleJoinAnyPlayer(playerId) {
+  if (!players[playerId]) return;
+  
+  // Mark player as in anyplayer mode
+  players[playerId].mode = 'anyplayer';
+  
+  // Add to anyplayer lobby if not already in it
+  if (!anyPlayerLobby.includes(playerId)) {
+    anyPlayerLobby.push(playerId);
+    console.log(`Player ${playerId} joined anyplayer lobby. Total players: ${anyPlayerLobby.length}`);
+  }
+  
+  // Send list of all players in the lobby
+  players[playerId].ws.send(JSON.stringify({
+    type: 'anyplayer_players',
+    players: anyPlayerLobby.filter(id => id !== playerId)
+  }));
+  
+  // Notify all other players in lobby about new player
+  anyPlayerLobby.forEach(pId => {
+    if (pId !== playerId && players[pId]) {
+      players[pId].ws.send(JSON.stringify({
+        type: 'anyplayer_players',
+        players: anyPlayerLobby.filter(id => id !== pId)
+      }));
+    }
+  });
 }
 
 function broadcastToOthers(excludeId, message) {

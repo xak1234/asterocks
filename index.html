@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>3I / ATLAS Brightness Tracker — Live</title>
+  <title>Asterocks — Multiplayer Asteroid Game</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
     body {
@@ -628,6 +628,76 @@
       letter-spacing: 1px;
     }
 
+    /* ===== PLAYER LIST (ANYPLAYER MODE) ===== */
+    #playerList {
+      position: fixed;
+      top: 150px;
+      right: 90px;
+      background: rgba(15, 27, 42, 0.95);
+      border: 2px solid rgba(126, 200, 255, 0.5);
+      border-radius: 6px;
+      padding: 9px 12px;
+      min-width: 135px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    #playerList.active {
+      display: block;
+    }
+
+    .player-list-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: rgba(255, 200, 100, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.75px;
+      margin-bottom: 7.5px;
+      text-align: center;
+      border-bottom: 1px solid rgba(126, 200, 255, 0.3);
+      padding-bottom: 4.5px;
+    }
+
+    .player-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4.5px 6px;
+      margin-bottom: 3px;
+      background: rgba(8, 16, 26, 0.6);
+      border-radius: 3px;
+      border-left: 2.25px solid;
+    }
+
+    .player-item.me {
+      background: rgba(126, 240, 163, 0.15);
+      border-left-color: rgba(126, 240, 163, 0.8);
+    }
+
+    .player-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .player-info {
+      flex: 1;
+      font-size: 9px;
+    }
+
+    .player-name {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+    }
+
+    .player-score {
+      color: rgba(255, 200, 100, 0.8);
+      font-size: 8.25px;
+    }
+
     /* ===== CONTROL BUTTONS ===== */
     .control-buttons {
       position: fixed;
@@ -733,7 +803,8 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(8, 16, 26, 0.95);
+      background: url('back.png') center center / cover no-repeat, rgba(8, 16, 26, 0.7);
+      background-blend-mode: overlay;
       display: none;
       align-items: center;
       justify-content: center;
@@ -749,42 +820,42 @@
       text-align: center;
       color: #e6eef8;
       background: rgba(15, 27, 42, 0.9);
-      border-radius: 16px;
-      padding: 40px 60px;
+      border-radius: 8px;
+      padding: 20px 30px;
       border: 2px solid rgba(126, 200, 255, 0.5);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-      min-width: 400px;
+      min-width: 200px;
     }
 
     .lobby-title {
-      font-size: 32px;
+      font-size: 16px;
       font-weight: 800;
       color: rgba(126, 240, 163, 0.9);
       text-shadow: 0 0 20px rgba(126, 240, 163, 0.5);
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       letter-spacing: 2px;
     }
 
     .lobby-status {
-      font-size: 16px;
+      font-size: 8px;
       color: #93aecd;
-      margin-bottom: 30px;
-      min-height: 24px;
+      margin-bottom: 15px;
+      min-height: 12px;
     }
 
     .lobby-options {
       display: flex;
       flex-direction: column;
-      gap: 15px;
-      margin-bottom: 20px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
 
     .lobby-btn {
-      padding: 15px 30px;
-      font-size: 16px;
+      padding: 8px 15px;
+      font-size: 8px;
       font-weight: 600;
       border: 2px solid rgba(126, 200, 255, 0.5);
-      border-radius: 8px;
+      border-radius: 4px;
       background: rgba(15, 27, 42, 0.8);
       color: rgba(126, 200, 255, 0.9);
       cursor: pointer;
@@ -828,8 +899,20 @@
       box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
     }
 
+    .lobby-btn-any {
+      background: rgba(255, 165, 0, 0.2);
+      border-color: rgba(255, 165, 0, 0.6);
+      color: rgba(255, 200, 100, 1);
+    }
+
+    .lobby-btn-any:hover:not(:disabled) {
+      background: rgba(255, 165, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4);
+      border-color: rgba(255, 200, 100, 0.8);
+    }
+
     .lobby-hint {
-      font-size: 13px;
+      font-size: 7px;
       color: #86a6c5;
       font-style: italic;
     }
@@ -1045,14 +1128,15 @@
   <!-- 2-Player Co-op Lobby -->
   <div class="lobby-overlay" id="lobbyOverlay">
     <div class="lobby-content">
-      <div class="lobby-title">MULTIPLAYER LOBBY</div>
+      <div class="lobby-title">ASTEROCKS</div>
       <div class="lobby-status" id="lobbyStatus">Connecting...</div>
       <div class="lobby-options" id="lobbyOptions">
         <button class="lobby-btn" id="soloPlayBtn">Play Solo</button>
         <button class="lobby-btn lobby-btn-primary" id="coopPlayBtn" disabled>Co-op Mode</button>
         <button class="lobby-btn lobby-btn-vs" id="vsPlayBtn" disabled>VS Mode (PvP)</button>
+        <button class="lobby-btn lobby-btn-any" id="anyPlayerBtn">Any Player (Battle Royale)</button>
       </div>
-      <div class="lobby-hint">Co-op: Team up against asteroids | VS: Battle each other!</div>
+      <div class="lobby-hint">Co-op: Team up | VS: 1v1 Battle | Any Player: Join anyone's fight!</div>
     </div>
   </div>
   
@@ -1067,6 +1151,12 @@
         <button class="join-request-btn join-request-decline" id="declineJoinBtn">Decline</button>
       </div>
     </div>
+  </div>
+  
+  <!-- Player List (Battle Royale) -->
+  <div id="playerList">
+    <div class="player-list-title">Battle Royale</div>
+    <div id="playerListContent"></div>
   </div>
   
   <!-- Screen Saver Overlay -->
@@ -1291,9 +1381,7 @@ function drawContactVisualization(distanceKm) {
   } else {
     daysEl.textContent = '—';
     dateEl.textContent = '—';
-    if (!actualVelocity) {
-      console.log('Days calculation: No valid velocity available');
-    }
+    // Silenced: velocity calculation not available for game-only mode
   }
   
   // Draw visualization
@@ -1972,6 +2060,8 @@ async function fetchLatest() {
     ArrowLeft: false,
     ArrowRight: false,
     ' ': false, // Spacebar
+    'b': false, // Bomb drop
+    'B': false, // Bomb drop (uppercase)
     'h': false, // Hyperspace
     'H': false  // Hyperspace (uppercase)
   };
@@ -2285,6 +2375,11 @@ function playSound(soundName) {
   const ufos = [];
   const ufoBullets = [];
   const aliens = []; // Rare powerful aliens
+  const bombs = []; // Bombs for anyplayer mode
+  const MAX_BOMBS = 5; // Maximum bombs per player
+  let bombCount = 0; // Current number of active bombs
+  let lastBombRefreshTime = Date.now(); // Track bomb refresh timer
+  const BOMB_REFRESH_INTERVAL = 20000; // 20 seconds
   let lastHugeAsteroidTime = Date.now();
   const HUGE_ASTEROID_INTERVAL = 20000; // 20 seconds
   let lastUfoTime = Date.now();
@@ -2327,6 +2422,21 @@ function playSound(soundName) {
   let blueAsteroidId = 0; // Counter for unique IDs
   let energyForcefield = false; // Energy forcefield powerup state
 
+  // Helper function to check if player is leading in anyplayer mode
+  function isLeadingPlayer() {
+    const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+    const myScore = score;
+    
+    // Check if we have the highest score
+    for (const player of Object.values(allPlayers)) {
+      if (player.score > myScore) {
+        return false;
+      }
+    }
+    
+    return Object.keys(allPlayers).length > 0; // Only show if there are other players
+  }
+
   // Powerup sync functions for co-op
   window.getPowerups = () => {
     return {
@@ -2353,9 +2463,10 @@ function playSound(soundName) {
     }
   };
   
-  // Handle being hit by other player in VS mode
+  // Handle being hit by other player in VS or anyplayer mode
   window.handlePlayerHit = () => {
-    if (window.getGameMode && window.getGameMode() === 'vs' && !ship.exploded) {
+    const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    if ((gameMode === 'vs' || gameMode === 'anyplayer') && !ship.exploded) {
       lives--;
       dualCannon = false;
       dualThruster = false;
@@ -2372,7 +2483,8 @@ function playSound(soundName) {
       
       if (lives <= 0) {
         gameOver = true;
-        console.log('GAME OVER - Defeated by other player!');
+        const modeText = gameMode === 'anyplayer' ? 'Battle Royale' : 'VS Mode';
+        console.log(`GAME OVER - Defeated in ${modeText}!`);
       }
     }
   };
@@ -2457,10 +2569,10 @@ function playSound(soundName) {
     
     if (edge === 0) { // left side, moving right
       x = -60;
-      velocityX = 5 + Math.random() * 3; // Faster
+      velocityX = 2.5 + Math.random() * 1.5; // Slower (was 5-8, now 2.5-4)
     } else { // right side, moving left
       x = canvas.width + 60;
-      velocityX = -(5 + Math.random() * 3); // Faster
+      velocityX = -(2.5 + Math.random() * 1.5); // Slower (was 5-8, now 2.5-4)
     }
     
     ufos.push({
@@ -2898,6 +3010,46 @@ function playSound(soundName) {
     }
   }
   
+  function createBombExplosion(x, y) {
+    // Create expanding shockwave rings
+    const shockwaveCount = 3;
+    for (let ring = 0; ring < shockwaveCount; ring++) {
+      const angleCount = 16 + (ring * 8); // More particles in outer rings
+      const delay = ring * 50; // Stagger the rings
+      
+      for (let i = 0; i < angleCount; i++) {
+        const angle = (Math.PI * 2 * i) / angleCount;
+        const speed = 3 + ring * 1.5; // Outer rings move faster
+        
+        particles.push({
+          x,
+          y,
+          velocity: {
+            x: Math.cos(angle) * speed,
+            y: Math.sin(angle) * speed
+          },
+          life: 1 - (ring * 0.15), // Outer rings fade faster
+          size: 3 - ring * 0.5,
+          delay: delay
+        });
+      }
+    }
+    
+    // Add some random debris in center
+    for (let i = 0; i < 30; i++) {
+      particles.push({
+        x,
+        y,
+        velocity: {
+          x: (Math.random() - 0.5) * 6,
+          y: (Math.random() - 0.5) * 6
+        },
+        life: 1,
+        size: Math.random() * 3 + 1
+      });
+    }
+  }
+  
   // Autonomous ship AI or Manual Control
   function updateShipAI() {
     // Check if ship should respawn
@@ -3069,6 +3221,41 @@ function playSound(soundName) {
         console.log('Manual hyperspace jump!');
       }
       ship.lastHyperspaceState = hyperspacePressed;
+      
+      // Handle bomb drop (B key) - only in anyplayer mode
+      if (window.getGameMode && window.isMultiplayerActive) {
+        const currentGameMode = window.getGameMode();
+        const isMultiplayerActive = window.isMultiplayerActive();
+        
+        if ((currentGameMode === 'anyplayer' || currentGameMode === 'vs') && isMultiplayerActive) {
+          const bombPressed = keyboard.b || keyboard.B;
+          if (bombPressed && !ship.lastBombState && bombCount < MAX_BOMBS) {
+            // Drop a bomb at current position
+            const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+            const bomb = {
+              x: ship.x,
+              y: ship.y,
+              owner: currentPlayerId,
+              life: Infinity, // Stays until hit
+              pulsePhase: 0,
+              createdAt: Date.now() // Track when bomb was dropped
+            };
+            bombs.push(bomb);
+            bombCount++;
+            
+            // Broadcast bomb to other players
+            if (window.broadcastBombDropped) {
+              window.broadcastBombDropped(bomb);
+              console.log(`💣 Bomb dropped! (${bombCount}/${MAX_BOMBS}) - Broadcast sent`);
+            } else {
+              console.log(`💣 Bomb dropped! (${bombCount}/${MAX_BOMBS}) - ⚠️ No broadcast function available!`);
+            }
+            
+            playSound('shoot'); // Use shoot sound for now
+          }
+          ship.lastBombState = bombPressed;
+        }
+      }
     } else {
       // Original autonomous AI
       ship.lastFireState = false;
@@ -3214,6 +3401,69 @@ function playSound(soundName) {
     if (ship.x > canvas.width) ship.x = 0;
     if (ship.y < 0) ship.y = canvas.height;
     if (ship.y > canvas.height) ship.y = 0;
+    
+    // Check collision with bombs in anyplayer mode
+    const currentGameMode = window.getGameMode && window.getGameMode();
+    if (currentGameMode === 'anyplayer' && !ship.exploded && !gameOver) {
+      const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        const bomb = bombs[i];
+        // Don't hit your own bombs
+        if (bomb.owner === currentPlayerId) continue;
+        
+        const dx = ship.x - bomb.x;
+        const dy = ship.y - bomb.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 10 + ship.size) {
+          // Ship hit a bomb!
+          if (energyForcefield) {
+            // Forcefield absorbs bomb hit
+            energyForcefield = false;
+            createBombExplosion(bomb.x, bomb.y);
+            playSound('hit');
+            console.log('🛡️ FORCEFIELD ABSORBED BOMB!');
+          } else {
+            // Ship explodes!
+            lives--;
+            dualCannon = false;
+            dualThruster = false;
+            thrusterPower = 1;
+            tripleCannon = false;
+            cannonRange = 1;
+            largerForcefield = false;
+            ship.exploded = true;
+            ship.respawnTime = Date.now() + 3000;
+            createBombExplosion(bomb.x, bomb.y);
+            playSound('explosion');
+            console.log(`Ship destroyed by bomb! Lives remaining: ${lives}`);
+            
+            if (lives <= 0) {
+              gameOver = true;
+              console.log('GAME OVER!');
+            }
+            
+            // Notify the bomb owner they got a kill
+            if (window.broadcastBombKill) {
+              window.broadcastBombKill(currentPlayerId, bomb.owner);
+              console.log(`💀 Killed by ${bomb.owner}'s bomb!`);
+            }
+          }
+          
+          // Remove bomb
+          bombs.splice(i, 1);
+          if (bomb.owner === currentPlayerId && bombCount > 0) {
+            bombCount--;
+          }
+          
+          // Broadcast bomb destruction
+          if (window.broadcastBombDestroyed) {
+            window.broadcastBombDestroyed(i);
+          }
+          break;
+        }
+      }
+    }
   }
   
   // Update asteroids
@@ -3475,27 +3725,100 @@ function playSound(soundName) {
       bullet.y += bullet.velocity.y;
       bullet.life--;
       
-      // Check collision with other player in VS mode
-      if (window.getGameMode && window.getGameMode() === 'vs') {
-        const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
-        if (otherShip && !otherShip.exploded && bullet.owner === 'me') {
-          const dx = bullet.x - otherShip.x;
-          const dy = bullet.y - otherShip.y;
+      const currentGameMode = window.getGameMode && window.getGameMode();
+      
+      // Check collision with other players in VS or anyplayer mode
+      if (currentGameMode === 'vs' || currentGameMode === 'anyplayer') {
+        // Only check if this is our bullet
+        if (bullet.owner === 'me') {
+          if (currentGameMode === 'vs') {
+            // VS mode - check collision with the other player
+            const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
+            if (otherShip && !otherShip.exploded) {
+              const dx = bullet.x - otherShip.x;
+              const dy = bullet.y - otherShip.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              
+              if (dist < otherShip.size) {
+                // Hit other player!
+                bullets.splice(index, 1);
+                createParticles(otherShip.x, otherShip.y, 15);
+                playSound('explosion');
+                
+                // Broadcast hit
+                if (window.broadcastPlayerHit) {
+                  window.broadcastPlayerHit(window.getOtherPlayerId ? window.getOtherPlayerId() : null);
+                }
+                
+                score += 1000; // Big points for hitting player
+                console.log('Hit other player!');
+                return;
+              }
+            }
+          } else if (currentGameMode === 'anyplayer') {
+            // Anyplayer mode - check collision with all other players
+            const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+            
+            for (const [playerId, player] of Object.entries(allPlayers)) {
+              if (player.exploded) continue;
+              
+              const dx = bullet.x - player.x;
+              const dy = bullet.y - player.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              
+              if (dist < player.size) {
+                // Hit another player!
+                bullets.splice(index, 1);
+                createParticles(player.x, player.y, 15);
+                playSound('explosion');
+                
+                // Broadcast hit to that player
+                if (window.broadcastPlayerHit) {
+                  window.broadcastPlayerHit(playerId);
+                }
+                
+                score += 1000; // Big points for hitting player
+                console.log(`Hit player ${playerId}!`);
+                return;
+              }
+            }
+          }
+        }
+      }
+      
+      // Check collision with bombs in anyplayer mode
+      if (currentGameMode === 'anyplayer') {
+        const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+        for (let i = bombs.length - 1; i >= 0; i--) {
+          const bomb = bombs[i];
+          // Don't hit your own bombs with your own bullets
+          if (bomb.owner === currentPlayerId && bullet.owner === 'me') continue;
+          
+          const dx = bullet.x - bomb.x;
+          const dy = bullet.y - bomb.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           
-          if (dist < otherShip.size) {
-            // Hit other player!
+          if (dist < 10) {
+            // Bullet hit bomb!
             bullets.splice(index, 1);
-            createParticles(otherShip.x, otherShip.y, 15);
+            
+            // Explosion particles
+            createBombExplosion(bomb.x, bomb.y);
             playSound('explosion');
             
-            // Broadcast hit
-            if (window.broadcastPlayerHit) {
-              window.broadcastPlayerHit(window.getOtherPlayerId ? window.getOtherPlayerId() : null);
+            // Remove bomb
+            if (bomb.owner === currentPlayerId) {
+              bombCount--;
+            }
+            bombs.splice(i, 1);
+            
+            // Broadcast bomb destruction
+            if (window.broadcastBombDestroyed && bullet.owner === 'me') {
+              window.broadcastBombDestroyed(i);
             }
             
-            score += 1000; // Big points for hitting player
-            console.log('Hit other player!');
+            score += 50; // Points for destroying bomb
+            console.log('Destroyed bomb!');
             return;
           }
         }
@@ -3511,6 +3834,12 @@ function playSound(soundName) {
   // Update particles
   function updateParticles() {
     particles.forEach((particle, index) => {
+      // Handle delayed particles (for shockwave rings)
+      if (particle.delay !== undefined) {
+        particle.delay -= 16; // Subtract frame time
+        if (particle.delay > 0) return; // Don't update yet
+      }
+      
       particle.x += particle.velocity.x;
       particle.y += particle.velocity.y;
       particle.life -= 0.02;
@@ -3519,6 +3848,117 @@ function playSound(soundName) {
         particles.splice(index, 1);
       }
     });
+  }
+  
+  function updateBombs() {
+    const now = Date.now();
+    const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+    
+    for (let i = bombs.length - 1; i >= 0; i--) {
+      const bomb = bombs[i];
+      let bombDestroyed = false;
+      
+      // Auto-detonate after 10 seconds
+      if (bomb.createdAt && now - bomb.createdAt >= 10000) {
+        // Create explosion
+        createBombExplosion(bomb.x, bomb.y);
+        playSound('explosion');
+        bombDestroyed = true;
+        console.log('💣 Bomb auto-detonated!');
+      }
+      
+      // Check collision with asteroids
+      if (!bombDestroyed) {
+        for (let j = asteroids.length - 1; j >= 0; j--) {
+          const asteroid = asteroids[j];
+          const dx = bomb.x - asteroid.x;
+          const dy = bomb.y - asteroid.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < asteroid.size + 10) {
+            // Bomb hit asteroid - both explode!
+            createBombExplosion(bomb.x, bomb.y);
+            createParticles(asteroid.x, asteroid.y, 15);
+            playSound('explosion');
+            
+            // Destroy asteroid (no splitting)
+            asteroids.splice(j, 1);
+            bombDestroyed = true;
+            
+            // Award points
+            if (bomb.owner === currentPlayerId) {
+              score += 100;
+            }
+            break;
+          }
+        }
+      }
+      
+      // Check collision with UFOs
+      if (!bombDestroyed) {
+        for (let j = ufos.length - 1; j >= 0; j--) {
+          const ufo = ufos[j];
+          const dx = bomb.x - ufo.x;
+          const dy = bomb.y - ufo.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < ufo.size + 10) {
+            // Bomb hit UFO!
+            createBombExplosion(bomb.x, bomb.y);
+            createParticles(ufo.x, ufo.y, 20);
+            playSound('explosion');
+            
+            ufos.splice(j, 1);
+            bombDestroyed = true;
+            
+            if (bomb.owner === currentPlayerId) {
+              score += 500;
+            }
+            break;
+          }
+        }
+      }
+      
+      // Check collision with aliens
+      if (!bombDestroyed) {
+        for (let j = aliens.length - 1; j >= 0; j--) {
+          const alien = aliens[j];
+          const dx = bomb.x - alien.x;
+          const dy = bomb.y - alien.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < alien.size + 10) {
+            // Bomb hit alien!
+            createBombExplosion(bomb.x, bomb.y);
+            createParticles(alien.x, alien.y, 30);
+            playSound('explosion');
+            
+            aliens.splice(j, 1);
+            bombDestroyed = true;
+            
+            if (bomb.owner === currentPlayerId) {
+              score += 1500;
+            }
+            break;
+          }
+        }
+      }
+      
+      // Remove bomb if destroyed
+      if (bombDestroyed) {
+        // Decrement count if it's our bomb
+        if (bomb.owner === currentPlayerId && bombCount > 0) {
+          bombCount--;
+        }
+        
+        bombs.splice(i, 1);
+        
+        // Broadcast destruction
+        if (window.broadcastBombDestroyed) {
+          window.broadcastBombDestroyed(i);
+        }
+      }
+    }
   }
   
   // Draw functions
@@ -3538,6 +3978,46 @@ function playSound(soundName) {
     ctx.translate(ship.x, ship.y);
     ctx.rotate(ship.angle);
     
+    // Check if this player is winning in anyplayer mode
+    const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const isWinning = gameMode === 'anyplayer' && isLeadingPlayer();
+    
+    // Draw victory flag if winning
+    if (isWinning) {
+      ctx.save();
+      ctx.translate(-ship.size, -ship.size * 1.5);
+      
+      // Flag pole
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -20);
+      ctx.stroke();
+      
+      // Animated flag
+      const wave = Math.sin(Date.now() / 100) * 2;
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(0, -20);
+      ctx.lineTo(12 + wave, -17);
+      ctx.lineTo(10 + wave, -13);
+      ctx.lineTo(0, -10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // Crown on flag
+      ctx.fillStyle = 'rgba(255, 215, 0, 1)';
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', 6 + wave / 2, -13);
+      
+      ctx.restore();
+    }
+    
     // Draw energy forcefield if active
     if (energyForcefield) {
       const pulseIntensity = 0.5 + Math.sin(Date.now() / 200) * 0.3;
@@ -3555,9 +4035,13 @@ function playSound(soundName) {
     }
     
     // Ship body (triangle)
-    ctx.strokeStyle = 'rgba(126, 240, 163, 0.6)';
-    ctx.fillStyle = 'rgba(126, 240, 163, 0.1)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isWinning ? 'rgba(255, 215, 0, 0.8)' : 'rgba(126, 240, 163, 0.6)';
+    ctx.fillStyle = isWinning ? 'rgba(255, 215, 0, 0.2)' : 'rgba(126, 240, 163, 0.1)';
+    ctx.lineWidth = isWinning ? 3 : 2;
+    if (isWinning) {
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
+      ctx.shadowBlur = 15;
+    }
     ctx.beginPath();
     ctx.moveTo(ship.size, 0);
     ctx.lineTo(-ship.size, -ship.size / 2);
@@ -3565,6 +4049,9 @@ function playSound(soundName) {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    if (isWinning) {
+      ctx.shadowBlur = 0;
+    }
     
     // Thrust flames
     if (ship.thrust) {
@@ -3668,6 +4155,69 @@ function playSound(soundName) {
     });
   }
   
+  function drawBombs() {
+    const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+    const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+    
+    bombs.forEach(bomb => {
+      // Pulsing animation
+      bomb.pulsePhase = (bomb.pulsePhase || 0) + 0.1;
+      const pulse = Math.sin(bomb.pulsePhase) * 0.3 + 0.7;
+      const size = 8 * pulse;
+      
+      // Outer glow
+      ctx.shadowColor = 'rgba(255, 50, 50, 0.8)';
+      ctx.shadowBlur = 15 * pulse;
+      
+      // Get owner color if available
+      let bombColor = 'rgba(255, 50, 50, 0.9)';
+      if (bomb.owner && allPlayers[bomb.owner]) {
+        const playerColor = allPlayers[bomb.owner].color || 0;
+        const playerColorsArray = window.getPlayerColors ? window.getPlayerColors() : [];
+        if (playerColorsArray.length > 0) {
+          const colors = playerColorsArray[playerColor % playerColorsArray.length];
+          bombColor = colors.primary;
+        }
+      } else if (bomb.owner === currentPlayerId) {
+        bombColor = 'rgba(255, 150, 50, 0.9)'; // Orange for my bombs
+      }
+      
+      // Draw bomb circle
+      ctx.fillStyle = bombColor;
+      ctx.beginPath();
+      ctx.arc(bomb.x, bomb.y, size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Inner core
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.arc(bomb.x, bomb.y, size * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+      
+      // Draw countdown timer
+      if (bomb.createdAt) {
+        const elapsed = Date.now() - bomb.createdAt;
+        const remaining = Math.max(0, 10 - Math.floor(elapsed / 1000));
+        
+        // Draw countdown with outline for visibility
+        ctx.font = 'bold 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Black outline
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 4;
+        ctx.strokeText(remaining.toString(), bomb.x, bomb.y);
+        
+        // White fill
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+        ctx.fillText(remaining.toString(), bomb.x, bomb.y);
+      }
+    });
+  }
+  
   function drawUfoBullets() {
     ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
     ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
@@ -3701,11 +4251,25 @@ function playSound(soundName) {
     // Game mode indicator
     if (window.isMultiplayerActive && window.isMultiplayerActive()) {
       const labelGameMode = window.getGameMode ? window.getGameMode() : 'coop';
-      ctx.fillStyle = labelGameMode === 'vs' ? 'rgba(255, 107, 107, 0.9)' : 'rgba(126, 240, 163, 0.9)';
-      ctx.font = 'bold 14px system-ui';
-      ctx.textAlign = 'left';
-      const modeText = labelGameMode === 'vs' ? '⚔️ VS MODE' : '🤝 CO-OP';
-      ctx.fillText(modeText, 20, 65);
+      
+      // Only show indicator for VS and anyplayer modes, not co-op
+      if (labelGameMode === 'vs') {
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('⚔️ VS MODE', 20, 65);
+      } else if (labelGameMode === 'anyplayer') {
+        ctx.fillStyle = 'rgba(255, 165, 50, 0.9)';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('⚔️ BATTLE ROYALE', 20, 65);
+        
+        // Bomb count
+        ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
+        ctx.font = 'bold 16px system-ui';
+        ctx.fillText(`💣 Bombs: ${bombCount}/${MAX_BOMBS}`, 20, 87);
+      }
+      // Don't show anything for co-op mode
     }
     
     // Lives (top right) - draw ship icons
@@ -3764,6 +4328,8 @@ function playSound(soundName) {
     
     // Game Over message
     if (gameOver) {
+      const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+      
       ctx.fillStyle = 'rgba(255, 107, 107, 0.95)';
       ctx.font = 'bold 64px system-ui';
       ctx.textAlign = 'center';
@@ -3771,10 +4337,20 @@ function playSound(soundName) {
       ctx.shadowBlur = 20;
       ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
       
+      // Show appropriate message based on game mode
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.font = 'bold 24px system-ui';
       ctx.shadowBlur = 10;
-      ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      
+      if (currentGameMode === 'anyplayer') {
+        ctx.fillText(`Battle Royale - Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      } else if (currentGameMode === 'vs') {
+        ctx.fillText(`VS Mode - Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      } else if (currentGameMode === 'coop') {
+        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      } else {
+        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+      }
       
       // Draw 'Play Again' button
       const btnX = canvas.width / 2;
@@ -3814,27 +4390,41 @@ function playSound(soundName) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     if (!gamePaused) {
-      // Check game mode - disable spawning in VS mode
+      // Check game mode - adjust spawning based on mode
       const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
       const isVsMode = gameMode === 'vs';
+      const isAnyPlayerMode = gameMode === 'anyplayer';
       
       if (!isVsMode) {
-        // Spawn huge asteroid periodically (only in solo/coop)
         const now = Date.now();
-        if (now - lastHugeAsteroidTime >= HUGE_ASTEROID_INTERVAL) {
+        
+        // Refresh bomb count every 20 seconds in anyplayer and vs modes
+        if ((isAnyPlayerMode || isVsMode) && now - lastBombRefreshTime >= BOMB_REFRESH_INTERVAL) {
+          bombCount = 0; // Reset bomb count
+          lastBombRefreshTime = now;
+          console.log('💣 Bomb count refreshed! You have 5 bombs available.');
+        }
+        
+        // Reduced spawning in anyplayer mode (battle royale focuses on PvP)
+        const asteroidMultiplier = isAnyPlayerMode ? 2.5 : 1; // 2.5x slower in anyplayer
+        const ufoMultiplier = isAnyPlayerMode ? 3 : 1; // 3x slower in anyplayer
+        const alienMultiplier = isAnyPlayerMode ? 4 : 1; // 4x slower in anyplayer
+        
+        // Spawn huge asteroid periodically
+        if (now - lastHugeAsteroidTime >= HUGE_ASTEROID_INTERVAL * asteroidMultiplier) {
           spawnHugeAsteroid();
           lastHugeAsteroidTime = now;
         }
         
-        // Spawn UFO randomly (only in solo/coop)
-        if (now - lastUfoTime >= nextUfoInterval) {
+        // Spawn UFO randomly
+        if (now - lastUfoTime >= nextUfoInterval * ufoMultiplier) {
           spawnUfo();
           lastUfoTime = now;
           nextUfoInterval = 20000 + Math.random() * 15000; // New random interval for next UFO
         }
         
-        // Spawn Alien rarely (only in solo/coop)
-        if (now - lastAlienTime >= nextAlienInterval) {
+        // Spawn Alien rarely
+        if (now - lastAlienTime >= nextAlienInterval * alienMultiplier) {
           spawnAlien();
           lastAlienTime = now;
           nextAlienInterval = 45000 + Math.random() * 30000; // 45-75 seconds
@@ -3848,6 +4438,7 @@ function playSound(soundName) {
       updateUfos();
       updateUfoBullets();
       updateBullets();
+      updateBombs();
       updateParticles();
       
       // Check for extra life milestone
@@ -3865,6 +4456,7 @@ function playSound(soundName) {
     drawAliens();
     drawUfos();
     drawUfoBullets();
+    drawBombs();
     drawShip();
     drawBullets();
     drawParticles();
@@ -3883,6 +4475,8 @@ function playSound(soundName) {
   window.setSoundEnabled = (enabled) => { soundEnabled = enabled; };
   window.getGameOver = () => gameOver;
   window.getGameCanvas = () => canvas; // Expose canvas for Play Again button
+  window.getLives = () => lives;
+  window.getScore = () => score;
   
   // Expose game objects for radar and multiplayer
   window.getShip = () => ship;
@@ -3891,6 +4485,12 @@ function playSound(soundName) {
   window.getAliens = () => aliens;
   window.getBullets = () => bullets;
   window.getUfoBullets = () => ufoBullets;
+  window.getBombs = () => bombs;
+  window.getBombCount = () => bombCount;
+  window.setBombCount = (count) => { bombCount = count; };
+  window.addBomb = (bomb) => { bombs.push(bomb); };
+  window.clearBombs = () => { bombs.length = 0; };
+  window.removeBomb = (index) => { bombs.splice(index, 1); };
 })();
 
 // ===== PAUSE AND SOUND CONTROLS =====
@@ -3966,10 +4566,46 @@ function playSound(soundName) {
       
       if (isInBounds) {
         console.log('Play Again button clicked - reloading...');
-        location.reload();
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.reload(true);
       }
     }
   });
+  
+  // Alternative Play Again handler - listen for clicks anywhere when game over
+  document.addEventListener('click', function(e) {
+    const gameOver = window.getGameOver ? window.getGameOver() : false;
+    if (!gameOver) return;
+    
+    // Get canvas position
+    const canvas = document.getElementById('asteroidCanvas');
+    const rect = canvas.getBoundingClientRect();
+    
+    // Check if click is within canvas bounds
+    if (e.clientX < rect.left || e.clientX > rect.right || 
+        e.clientY < rect.top || e.clientY > rect.bottom) {
+      return; // Click outside canvas
+    }
+    
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const btnX = canvas.width / 2;
+    const btnY = canvas.height / 2 + 90;
+    const btnWidth = 200;
+    const btnHeight = 50;
+    
+    const isInBounds = mouseX >= btnX - btnWidth / 2 && mouseX <= btnX + btnWidth / 2 &&
+                       mouseY >= btnY - btnHeight / 2 && mouseY <= btnY + btnHeight / 2;
+    
+    if (isInBounds) {
+      console.log('Play Again clicked via document handler');
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.reload(true);
+    }
+  }, true); // Use capture phase to catch before other handlers
   
   // Keyboard pause toggle (P key when not in hyperspace mode)
   let lastPauseKeyTime = 0;
@@ -4226,6 +4862,81 @@ function playSound(soundName) {
         radarCtx.fill();
     });
     
+    // Draw other players in multiplayer modes
+    const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const isMultiplayer = window.isMultiplayerActive ? window.isMultiplayerActive() : false;
+    
+    if (isMultiplayer) {
+      if (gameMode === 'anyplayer') {
+        // Draw all players in anyplayer mode with their unique colors
+        const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+        const getPlayerColor = window.getPlayerColor;
+        
+        Object.entries(allPlayers).forEach(([playerId, player]) => {
+          if (player.exploded) return;
+          
+          const dx = player.x - ship.x;
+          const dy = player.y - ship.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist > radarRange) return;
+          
+          const radarX = centerX + (dx / radarRange) * radarRadius;
+          const radarY = centerY + (dy / radarRange) * radarRadius;
+          
+          // Get player's unique color
+          const color = getPlayerColor ? getPlayerColor(playerId) : { primary: 'rgba(255, 107, 107, 0.7)' };
+          const colorStr = color.primary.replace('0.7)', '0.9)');
+          
+          // Draw triangle for other players
+          radarCtx.fillStyle = colorStr;
+          radarCtx.strokeStyle = colorStr;
+          radarCtx.lineWidth = 1.5;
+          radarCtx.shadowColor = colorStr;
+          radarCtx.shadowBlur = 6;
+          radarCtx.beginPath();
+          radarCtx.moveTo(radarX, radarY - 4);
+          radarCtx.lineTo(radarX - 3.5, radarY + 3);
+          radarCtx.lineTo(radarX + 3.5, radarY + 3);
+          radarCtx.closePath();
+          radarCtx.fill();
+          radarCtx.stroke();
+          radarCtx.shadowBlur = 0;
+        });
+      } else {
+        // Draw single other player in 2-player modes
+        const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
+        
+        if (otherShip && !otherShip.exploded) {
+          const dx = otherShip.x - ship.x;
+          const dy = otherShip.y - ship.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist <= radarRange) {
+            const radarX = centerX + (dx / radarRange) * radarRadius;
+            const radarY = centerY + (dy / radarRange) * radarRadius;
+            
+            // Color based on mode (red for VS, yellow for coop)
+            const playerColor = gameMode === 'vs' ? 'rgba(255, 107, 107, 0.9)' : 'rgba(255, 200, 100, 0.9)';
+            
+            radarCtx.fillStyle = playerColor;
+            radarCtx.strokeStyle = playerColor;
+            radarCtx.lineWidth = 1.5;
+            radarCtx.shadowColor = playerColor;
+            radarCtx.shadowBlur = 6;
+            radarCtx.beginPath();
+            radarCtx.moveTo(radarX, radarY - 4);
+            radarCtx.lineTo(radarX - 3.5, radarY + 3);
+            radarCtx.lineTo(radarX + 3.5, radarY + 3);
+            radarCtx.closePath();
+            radarCtx.fill();
+            radarCtx.stroke();
+            radarCtx.shadowBlur = 0;
+          }
+        }
+      }
+    }
+    
     requestAnimationFrame(drawRadar);
   }
   
@@ -4356,22 +5067,43 @@ function playSound(soundName) {
   console.log('Screen saver system initialized. Idle timeout: ' + (IDLE_TIME_MS / 1000 / 60) + ' minutes');
 })();
 
-// ===== 2-PLAYER CO-OP SYSTEM =====
+// ===== MULTIPLAYER SYSTEM (CO-OP, VS, ANY PLAYER) =====
 (function() {
   let ws = null;
   let myPlayerId = null;
   let otherPlayerId = null;
   let isMultiplayer = false;
   let isHost = false;
-  let gameMode = 'solo'; // 'solo', 'coop', 'vs'
+  let gameMode = 'solo'; // 'solo', 'coop', 'vs', 'anyplayer'
+  let allPlayers = {}; // For anyplayer mode: { playerId: shipState }
   let otherPlayerShip = null;
   let otherPlayerTargetState = null; // Target state for interpolation
   let lastUpdateTime = Date.now();
+  
+  // Color palette for different players (bright, distinct colors)
+  const playerColors = [
+    { name: 'Red', primary: 'rgba(255, 107, 107, 0.7)', fill: 'rgba(255, 107, 107, 0.15)' },
+    { name: 'Cyan', primary: 'rgba(100, 200, 255, 0.7)', fill: 'rgba(100, 200, 255, 0.15)' },
+    { name: 'Green', primary: 'rgba(126, 240, 163, 0.7)', fill: 'rgba(126, 240, 163, 0.15)' },
+    { name: 'Orange', primary: 'rgba(255, 165, 50, 0.7)', fill: 'rgba(255, 165, 50, 0.15)' },
+    { name: 'Purple', primary: 'rgba(200, 100, 255, 0.7)', fill: 'rgba(200, 100, 255, 0.15)' },
+    { name: 'Yellow', primary: 'rgba(255, 240, 100, 0.7)', fill: 'rgba(255, 240, 100, 0.15)' },
+    { name: 'Pink', primary: 'rgba(255, 150, 200, 0.7)', fill: 'rgba(255, 150, 200, 0.15)' },
+    { name: 'Teal', primary: 'rgba(80, 220, 200, 0.7)', fill: 'rgba(80, 220, 200, 0.15)' }
+  ];
+  
+  // Assign colors to players
+  function getPlayerColor(playerId) {
+    const playerIds = Object.keys(allPlayers).sort();
+    const index = playerIds.indexOf(playerId);
+    return playerColors[index % playerColors.length];
+  }
   
   const lobbyOverlay = document.getElementById('lobbyOverlay');
   const lobbyStatus = document.getElementById('lobbyStatus');
   const soloPlayBtn = document.getElementById('soloPlayBtn');
   const coopPlayBtn = document.getElementById('coopPlayBtn');
+  const anyPlayerBtn = document.getElementById('anyPlayerBtn');
   const joinRequestOverlay = document.getElementById('joinRequestOverlay');
   const acceptJoinBtn = document.getElementById('acceptJoinBtn');
   const declineJoinBtn = document.getElementById('declineJoinBtn');
@@ -4476,21 +5208,42 @@ function playSound(soundName) {
       case 'player_state':
         // Update other player's ship with interpolation
         if (data.playerId !== myPlayerId && isMultiplayer) {
-          if (!otherPlayerShip) {
-            otherPlayerShip = {
-              x: data.state.x,
-              y: data.state.y,
-              angle: data.state.angle,
-              velocity: data.state.velocity,
-              exploded: data.state.exploded,
-              size: 15,
-              thrust: data.state.thrust || false
-            };
-            otherPlayerTargetState = { ...data.state };
+          if (gameMode === 'anyplayer') {
+            // In anyplayer mode, track all players
+            if (!allPlayers[data.playerId]) {
+              allPlayers[data.playerId] = {
+                x: data.state.x,
+                y: data.state.y,
+                angle: data.state.angle,
+                velocity: data.state.velocity,
+                exploded: data.state.exploded,
+                size: 15,
+                thrust: data.state.thrust || false,
+                lives: data.state.lives || 3,
+                score: data.state.score || 0
+              };
+            } else {
+              // Update existing player
+              Object.assign(allPlayers[data.playerId], data.state);
+            }
           } else {
-            // Set target state for smooth interpolation
-            otherPlayerTargetState = { ...data.state };
-            lastUpdateTime = Date.now();
+            // Regular 2-player mode
+            if (!otherPlayerShip) {
+              otherPlayerShip = {
+                x: data.state.x,
+                y: data.state.y,
+                angle: data.state.angle,
+                velocity: data.state.velocity,
+                exploded: data.state.exploded,
+                size: 15,
+                thrust: data.state.thrust || false
+              };
+              otherPlayerTargetState = { ...data.state };
+            } else {
+              // Set target state for smooth interpolation
+              otherPlayerTargetState = { ...data.state };
+              lastUpdateTime = Date.now();
+            }
           }
         }
         break;
@@ -4532,20 +5285,106 @@ function playSound(soundName) {
         break;
         
       case 'player_hit':
-        // In VS mode, other player hit us
-        if (gameMode === 'vs' && data.targetId === myPlayerId) {
+        // In VS or anyplayer mode, other player hit us
+        if ((gameMode === 'vs' || gameMode === 'anyplayer') && data.targetId === myPlayerId) {
           if (window.handlePlayerHit) {
             window.handlePlayerHit();
           }
         }
         break;
         
+      case 'bomb_dropped':
+        // Another player dropped a bomb
+        if ((gameMode === 'anyplayer' || gameMode === 'vs') && data.bomb && window.addBomb) {
+          // Ensure bomb has all required properties
+          const bomb = {
+            x: data.bomb.x,
+            y: data.bomb.y,
+            owner: data.bomb.owner,
+            life: data.bomb.life || Infinity,
+            pulsePhase: data.bomb.pulsePhase || 0,
+            createdAt: data.bomb.createdAt || Date.now()
+          };
+          window.addBomb(bomb);
+          const bombsArray = window.getBombs ? window.getBombs() : [];
+          console.log(`💣 Received bomb from ${bomb.owner} at (${Math.round(bomb.x)}, ${Math.round(bomb.y)}). Total bombs: ${bombsArray.length}`);
+        } else {
+          console.log('⚠️ Bomb received but not added:', { gameMode, hasBomb: !!data.bomb, hasAddBomb: !!window.addBomb });
+        }
+        break;
+        
+      case 'bomb_destroyed':
+        // A bomb was destroyed
+        if ((gameMode === 'anyplayer' || gameMode === 'vs') && data.bombIndex !== undefined && window.getBombs && window.removeBomb) {
+          const bombs = window.getBombs();
+          const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+          if (data.bombIndex < bombs.length) {
+            const bomb = bombs[data.bombIndex];
+            if (bomb && bomb.owner === currentPlayerId && window.getBombCount && window.setBombCount) {
+              window.setBombCount(window.getBombCount() - 1);
+            }
+            window.removeBomb(data.bombIndex);
+          }
+        }
+        break;
+        
+      case 'bomb_kill':
+        // Someone hit a bomb and died
+        if (gameMode === 'anyplayer' || gameMode === 'vs') {
+          const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+          if (data.bomber === currentPlayerId) {
+            // Our bomb got a kill!
+            score += 2000;
+            console.log(`💣 Your bomb eliminated player ${data.victim}! +2000`);
+          }
+        }
+        break;
+        
       case 'player_disconnected':
-        if (data.playerId === otherPlayerId) {
+        if (gameMode === 'anyplayer') {
+          // Remove from all players list
+          delete allPlayers[data.playerId];
+          
+          // Remove their bombs
+          if (window.getBombs && window.removeBomb) {
+            const bombs = window.getBombs();
+            for (let i = bombs.length - 1; i >= 0; i--) {
+              if (bombs[i].owner === data.playerId) {
+                window.removeBomb(i);
+              }
+            }
+          }
+          
+          console.log('Player disconnected from battle royale:', data.playerId);
+        } else if (data.playerId === otherPlayerId) {
           console.log('Other player disconnected');
           isMultiplayer = false;
           otherPlayerShip = null;
           otherPlayerId = null;
+        }
+        break;
+        
+      case 'anyplayer_players':
+        // Receive list of all players in anyplayer mode
+        if (gameMode === 'anyplayer') {
+          console.log('Received player list:', data.players);
+          // Initialize all other players
+          data.players.forEach(playerId => {
+            if (playerId !== myPlayerId && !allPlayers[playerId]) {
+              const gameCanvas = document.getElementById('asteroidCanvas');
+              allPlayers[playerId] = {
+                x: Math.random() * (gameCanvas ? gameCanvas.width : 800),
+                y: Math.random() * (gameCanvas ? gameCanvas.height : 600),
+                angle: Math.random() * Math.PI * 2,
+                velocity: { x: 0, y: 0 },
+                exploded: false,
+                size: 15,
+                thrust: false,
+                lives: 3,
+                score: 0
+              };
+            }
+          });
         }
         break;
     }
@@ -4560,9 +5399,10 @@ function playSound(soundName) {
     console.log(`Starting ${gameMode.toUpperCase()} game with ${partnerPlayerId}`);
     
     // Initialize other player ship
+    const gameCanvas = document.getElementById('asteroidCanvas');
     otherPlayerShip = {
-      x: canvas.width / 2 + 100,
-      y: canvas.height / 2,
+      x: (gameCanvas ? gameCanvas.width : 800) / 2 + 100,
+      y: (gameCanvas ? gameCanvas.height : 600) / 2,
       angle: Math.PI,
       velocity: { x: 0, y: 0 },
       exploded: false,
@@ -4611,6 +5451,30 @@ function playSound(soundName) {
     }
   });
   
+  anyPlayerBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Join or create an open game
+      ws.send(JSON.stringify({
+        type: 'join_anyplayer',
+        playerId: myPlayerId
+      }));
+      lobbyStatus.textContent = 'Joining battle royale...';
+      gameMode = 'anyplayer';
+      isMultiplayer = true;
+      lobbyOverlay.classList.remove('active');
+      console.log('Starting Any Player mode (Battle Royale)');
+      
+      // Initialize all players tracking
+      allPlayers = {};
+      
+      // Clear bombs from previous games
+      if (window.clearBombs) {
+        window.clearBombs();
+        window.setBombCount(0);
+      }
+    }
+  });
+  
   acceptJoinBtn.addEventListener('click', () => {
     if (pendingJoinRequest && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
@@ -4640,6 +5504,9 @@ function playSound(soundName) {
   setInterval(() => {
     if (isMultiplayer && ws && ws.readyState === WebSocket.OPEN) {
       const ship = window.getShip ? window.getShip() : null;
+      const lives = window.getLives ? window.getLives() : 3;
+      const score = window.getScore ? window.getScore() : 0;
+      
       if (ship) {
         ws.send(JSON.stringify({
           type: 'state_update',
@@ -4649,7 +5516,9 @@ function playSound(soundName) {
             angle: ship.angle,
             velocity: ship.velocity,
             exploded: ship.exploded,
-            thrust: ship.thrust
+            thrust: ship.thrust,
+            lives: lives,
+            score: score
           }
         }));
       }
@@ -4680,31 +5549,39 @@ function playSound(soundName) {
   
   // Interpolate other player's position for smooth movement
   setInterval(() => {
-    if (isMultiplayer && otherPlayerShip && otherPlayerTargetState) {
-      const lerpFactor = 0.3; // Interpolation speed (0-1, higher = faster)
-      
-      // Lerp position
-      otherPlayerShip.x += (otherPlayerTargetState.x - otherPlayerShip.x) * lerpFactor;
-      otherPlayerShip.y += (otherPlayerTargetState.y - otherPlayerShip.y) * lerpFactor;
-      
-      // Lerp angle (handle wrapping)
-      let angleDiff = otherPlayerTargetState.angle - otherPlayerShip.angle;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      otherPlayerShip.angle += angleDiff * lerpFactor;
-      
-      // Update other properties
-      otherPlayerShip.thrust = otherPlayerTargetState.thrust;
-      otherPlayerShip.exploded = otherPlayerTargetState.exploded;
+    if (isMultiplayer && gameMode !== 'anyplayer') {
+      // For 2-player modes, use interpolation
+      if (otherPlayerShip && otherPlayerTargetState) {
+        const lerpFactor = 0.6; // Faster interpolation (was 0.3, now 0.6 for less drag)
+        
+        // Lerp position
+        otherPlayerShip.x += (otherPlayerTargetState.x - otherPlayerShip.x) * lerpFactor;
+        otherPlayerShip.y += (otherPlayerTargetState.y - otherPlayerShip.y) * lerpFactor;
+        
+        // Lerp angle (handle wrapping)
+        let angleDiff = otherPlayerTargetState.angle - otherPlayerShip.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        otherPlayerShip.angle += angleDiff * lerpFactor;
+        
+        // Update other properties
+        otherPlayerShip.thrust = otherPlayerTargetState.thrust;
+        otherPlayerShip.exploded = otherPlayerTargetState.exploded;
+      }
     }
+    
+    // For anyplayer mode, positions are updated directly (no interpolation to reduce lag)
   }, 16); // ~60fps interpolation
   
   // Expose multiplayer functions
   window.getOtherPlayerShip = () => otherPlayerShip;
+  window.getAllPlayers = () => allPlayers;
   window.isMultiplayerActive = () => isMultiplayer;
   window.getGameMode = () => gameMode;
   window.getMyPlayerId = () => myPlayerId;
   window.getOtherPlayerId = () => otherPlayerId;
+  window.getPlayerColor = getPlayerColor;
+  window.getPlayerColors = () => playerColors;
   
   // Broadcast bullet function
   window.broadcastBullet = (bullet) => {
@@ -4716,9 +5593,48 @@ function playSound(soundName) {
     }
   };
   
-  // Broadcast player hit in VS mode
+  // Broadcast bomb operations
+  window.broadcastBombDropped = (bomb) => {
+    const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const isMulti = window.isMultiplayerActive ? window.isMultiplayerActive() : false;
+    console.log('🔍 Broadcast check:', { isMulti, currentGameMode, hasWs: !!ws, wsState: ws ? ws.readyState : 'no ws' });
+    if (isMulti && (currentGameMode === 'anyplayer' || currentGameMode === 'vs') && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'bomb_dropped',
+        bomb: bomb
+      }));
+      console.log('✅ Bomb broadcast sent to server');
+    } else {
+      console.log('❌ Bomb broadcast blocked:', { isMulti, currentGameMode, hasWs: !!ws, wsReady: ws && ws.readyState === WebSocket.OPEN });
+    }
+  };
+  
+  window.broadcastBombDestroyed = (bombIndex) => {
+    const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const isMulti = window.isMultiplayerActive ? window.isMultiplayerActive() : false;
+    if (isMulti && (currentGameMode === 'anyplayer' || currentGameMode === 'vs') && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'bomb_destroyed',
+        bombIndex: bombIndex
+      }));
+    }
+  };
+  
+  window.broadcastBombKill = (victimId, bomberId) => {
+    const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const isMulti = window.isMultiplayerActive ? window.isMultiplayerActive() : false;
+    if (isMulti && (currentGameMode === 'anyplayer' || currentGameMode === 'vs') && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'bomb_kill',
+        victim: victimId,
+        bomber: bomberId
+      }));
+    }
+  };
+  
+  // Broadcast player hit in VS or anyplayer mode
   window.broadcastPlayerHit = (targetPlayerId) => {
-    if (isMultiplayer && gameMode === 'vs' && ws && ws.readyState === WebSocket.OPEN) {
+    if (isMultiplayer && (gameMode === 'vs' || gameMode === 'anyplayer') && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'player_hit',
         targetId: targetPlayerId
@@ -4738,7 +5654,7 @@ function playSound(soundName) {
   // Override the ship drawing function to draw both players
   const originalGameLoop = window.gameLoop;
   
-  // Draw other player's ship
+  // Draw other player's ship (for 2-player modes)
   function drawOtherPlayerShip() {
     const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
     if (!otherShip || otherShip.exploded || !window.isMultiplayerActive()) return;
@@ -4789,6 +5705,108 @@ function playSound(soundName) {
     ctx.fillText(label, otherShip.x, otherShip.y - 25);
   }
   
+  // Draw all players in anyplayer mode
+  function drawAllPlayers() {
+    const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+    const getPlayerColor = window.getPlayerColor;
+    const canvas = document.getElementById('asteroidCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    Object.entries(allPlayers).forEach(([playerId, player]) => {
+      if (player.exploded) return;
+      
+      // Get unique color for this player
+      const color = getPlayerColor ? getPlayerColor(playerId) : { primary: 'rgba(255, 107, 107, 0.7)', fill: 'rgba(255, 107, 107, 0.15)' };
+      
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(player.angle);
+      
+      // Ship body - unique color for each player
+      ctx.strokeStyle = color.primary;
+      ctx.fillStyle = color.fill;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(player.size, 0);
+      ctx.lineTo(-player.size, -player.size / 2);
+      ctx.lineTo(-player.size, player.size / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Thrust flames
+      if (player.thrust) {
+        ctx.fillStyle = color.primary.replace('0.7)', '0.6)');
+        ctx.beginPath();
+        ctx.moveTo(-player.size, -player.size / 3);
+        ctx.lineTo(-player.size - 10, 0);
+        ctx.lineTo(-player.size, player.size / 3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      
+      ctx.restore();
+      
+      // Draw player indicator with score
+      ctx.fillStyle = color.primary.replace('0.7)', '0.9)');
+      ctx.font = 'bold 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${player.score || 0}`, player.x, player.y - 25);
+    });
+  }
+  
+  // Update player list UI
+  function updatePlayerList() {
+    const playerListEl = document.getElementById('playerList');
+    const playerListContent = document.getElementById('playerListContent');
+    const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const myPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+    const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+    const getPlayerColor = window.getPlayerColor;
+    const getScore = window.getScore ? window.getScore() : 0;
+    const getLives = window.getLives ? window.getLives() : 3;
+    
+    if (gameMode === 'anyplayer' && playerListEl && playerListContent) {
+      playerListEl.classList.add('active');
+      
+      // Build player list HTML
+      let html = '';
+      
+      // Add local player first
+      const myColor = { primary: 'rgba(126, 240, 163, 0.7)', fill: 'rgba(126, 240, 163, 0.15)' };
+      html += `
+        <div class="player-item me">
+          <div class="player-icon" style="background: ${myColor.primary};"></div>
+          <div class="player-info">
+            <div class="player-name">You</div>
+            <div class="player-score">Score: ${getScore} | Lives: ${getLives}</div>
+          </div>
+        </div>
+      `;
+      
+      // Add other players
+      Object.entries(allPlayers).forEach(([playerId, player]) => {
+        const color = getPlayerColor ? getPlayerColor(playerId) : { primary: 'rgba(255, 107, 107, 0.7)' };
+        const shortId = playerId.substring(0, 6);
+        html += `
+          <div class="player-item" style="border-left-color: ${color.primary};">
+            <div class="player-icon" style="background: ${color.primary};"></div>
+            <div class="player-info">
+              <div class="player-name">${shortId}</div>
+              <div class="player-score">Score: ${player.score || 0} | Lives: ${player.lives || 3}</div>
+            </div>
+          </div>
+        `;
+      });
+      
+      playerListContent.innerHTML = html;
+    } else {
+      if (playerListEl) {
+        playerListEl.classList.remove('active');
+      }
+    }
+  }
+  
   // Inject into game loop
   const canvas = document.getElementById('asteroidCanvas');
   const originalRequestAnimationFrame = window.requestAnimationFrame;
@@ -4796,9 +5814,24 @@ function playSound(soundName) {
   // Add to existing game render cycle
   setInterval(() => {
     if (window.isMultiplayerActive && window.isMultiplayerActive()) {
-      drawOtherPlayerShip();
+      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+      
+      if (gameMode === 'anyplayer') {
+        // Draw all players in battle royale
+        drawAllPlayers();
+        // Update player list UI
+        updatePlayerList();
+      } else {
+        // Draw single other player in 2-player modes
+        drawOtherPlayerShip();
+      }
     }
   }, 16); // ~60fps
+  
+  // Update player list more frequently
+  setInterval(() => {
+    updatePlayerList();
+  }, 100); // 10 times per second
 })();
 
 </script>

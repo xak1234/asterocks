@@ -1,7 +1,7 @@
 {
-  "name": "3i-atlas-tracker",
+  "name": "asterocks",
   "version": "1.0.0",
-  "description": "3I/ATLAS Tracker - Live spaceship tracking with TheSkyLive and COBS data",
+  "description": "Asterocks - Multiplayer asteroid battle royale game",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

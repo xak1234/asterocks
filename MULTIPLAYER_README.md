@@ -1,4 +1,4 @@
-# Atlas 2-Player Co-op System
+# Asterocks Multiplayer System
 
 ## Changes Made
 
