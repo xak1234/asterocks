@@ -1424,15 +1424,23 @@ function playSound(soundName) {
   // soundEnabled is global (defined outside this scope)
   let dualCannon = false; // Powerup from destroying UFO
   
-  // Create background stars
-  for (let i = 0; i < 150; i++) {
-    stars.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: Math.random() * 1.5 + 0.5,
-      opacity: Math.random() * 0.5 + 0.3
-    });
+  // Create background stars - fills entire window
+  function generateStarfield() {
+    stars.length = 0; // Clear existing stars
+    const starCount = Math.ceil((window.innerWidth * window.innerHeight) / 8000); // ~1 star per 8000px
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: Math.random() * 1.5 + 0.5,
+        opacity: Math.random() * 0.5 + 0.3
+      });
+    }
   }
+  generateStarfield();
+  
+  // Regenerate stars on window resize
+  window.addEventListener('resize', generateStarfield);
   
   // Track red asteroid fragments
   let redAsteroidFragments = new Set(); // IDs of fragments from red asteroid
@@ -2022,6 +2030,10 @@ function playSound(soundName) {
   
   // Create particle effect
   function createParticles(x, y, count) {
+    // Cap total particles to 500 for performance
+    if (particles.length > 500) {
+      particles.splice(0, count + 50); // Remove oldest particles
+    }
     for (let i = 0; i < count; i++) {
       particles.push({
         x,
@@ -2108,14 +2120,23 @@ function playSound(soundName) {
       // Handle thrust (joystick or keyboard)
       ship.thrust = buttons.up || keyboard.ArrowUp;
       if (ship.thrust) {
-        ship.velocity.x += Math.cos(ship.angle) * 0.15 * thrusterPower;
-        ship.velocity.y += Math.sin(ship.angle) * 0.15 * thrusterPower;
+        ship.velocity.x += Math.cos(ship.angle) * 0.25 * thrusterPower;
+        ship.velocity.y += Math.sin(ship.angle) * 0.25 * thrusterPower;
       }
       
       // Handle reverse thrust (joystick or keyboard)
       if (buttons.down || keyboard.ArrowDown) {
-        ship.velocity.x -= Math.cos(ship.angle) * 0.08 * thrusterPower;
-        ship.velocity.y -= Math.sin(ship.angle) * 0.08 * thrusterPower;
+        ship.velocity.x -= Math.cos(ship.angle) * 0.12 * thrusterPower;
+        ship.velocity.y -= Math.sin(ship.angle) * 0.12 * thrusterPower;
+      }
+      
+      // Clamp maximum velocity for balanced gameplay
+      const maxSpeed = 8;
+      const speed = Math.sqrt(ship.velocity.x * ship.velocity.x + ship.velocity.y * ship.velocity.y);
+      if (speed > maxSpeed) {
+        const scale = maxSpeed / speed;
+        ship.velocity.x *= scale;
+        ship.velocity.y *= scale;
       }
       
       // Handle fire (joystick or keyboard spacebar)
@@ -2417,8 +2438,8 @@ function playSound(soundName) {
     }
     
     // Apply velocity and friction
-    ship.velocity.x *= 0.99;
-    ship.velocity.y *= 0.99;
+    ship.velocity.x *= 0.98;
+    ship.velocity.y *= 0.98;
     ship.x += ship.velocity.x;
     ship.y += ship.velocity.y;
     
@@ -2494,7 +2515,8 @@ function playSound(soundName) {
   
   // Update asteroids
   function updateAsteroids() {
-    asteroids.forEach((asteroid, index) => {
+    for (let index = 0; index < asteroids.length; index++) {
+      const asteroid = asteroids[index];
       asteroid.x += asteroid.velocity.x;
       asteroid.y += asteroid.velocity.y;
       asteroid.angle += asteroid.rotation;
@@ -2546,7 +2568,8 @@ function playSound(soundName) {
       }
       
       // Check collision with bullets
-      bullets.forEach((bullet, bIndex) => {
+      for (let bIndex = bullets.length - 1; bIndex >= 0; bIndex--) {
+        const bullet = bullets[bIndex];
         const dx = bullet.x - asteroid.x;
         const dy = bullet.y - asteroid.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -2618,7 +2641,7 @@ function playSound(soundName) {
               console.log('🔥 RED ASTEROID DESTROYED! DUAL THRUSTER ACTIVATED!');
               score += 500; // Bonus points!
             }
-            return; // Don't splice again
+            continue; // Don't process further
           } else if (wasBlue && blueFragmentId) {
             // This was the last fragment of a blue asteroid - check if all destroyed
             asteroids.splice(index, 1);
@@ -2634,26 +2657,34 @@ function playSound(soundName) {
               console.log('🛡️ BLUE ASTEROID DESTROYED! ENERGY FORCEFIELD ACTIVATED!');
               score += 500; // Bonus points!
             }
-            return; // Don't splice again
+            continue; // Don't process further
           }
           asteroids.splice(index, 1);
+          break; // Exit bullet check loop since asteroid is destroyed
         }
-      });
+      }
       
-      // Check collision with other asteroids - apply physics
-      asteroids.forEach((otherAsteroid, otherIndex) => {
-        if (index >= otherIndex) return; // Skip self and avoid double-processing
+      // Skip expensive physics for asteroids far from screen or from each other
+      // Only check collisions for nearby asteroids
+      const maxPhysicsDistance = 300;
+      for (let otherIndex = index + 1; otherIndex < asteroids.length; otherIndex++) {
+        const otherAsteroid = asteroids[otherIndex];
         
         const dx = asteroid.x - otherAsteroid.x;
         const dy = asteroid.y - otherAsteroid.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy; // Use squared distance to avoid sqrt
         const minDist = asteroid.size + otherAsteroid.size;
+        const minDistSq = minDist * minDist;
+        
+        // Skip if too far apart or beyond max physics distance
+        if (distSq > minDistSq + (maxPhysicsDistance * maxPhysicsDistance)) continue;
+        
+        const dist = Math.sqrt(distSq);
         
         if (dist < minDist && dist > 0) {
-          // Collision detected - apply physics
-          // Mass is proportional to size cubed (volume)
-          const mass1 = Math.pow(asteroid.size, 3);
-          const mass2 = Math.pow(otherAsteroid.size, 3);
+          // Collision detected - apply simplified physics
+          const mass1 = asteroid.size;
+          const mass2 = otherAsteroid.size;
           
           // Normalize collision vector
           const nx = dx / dist;
@@ -2667,9 +2698,9 @@ function playSound(soundName) {
           const dvn = dvx * nx + dvy * ny;
           
           // Do not resolve if velocities are separating
-          if (dvn > 0) return;
+          if (dvn > 0) continue;
           
-          // Collision impulse (elastic collision)
+          // Collision impulse (simplified - linear instead of cubic mass)
           const impulse = (2 * dvn) / (mass1 + mass2);
           
           // Apply impulse to velocities
@@ -2678,9 +2709,8 @@ function playSound(soundName) {
           otherAsteroid.velocity.x += impulse * mass1 * nx;
           otherAsteroid.velocity.y += impulse * mass1 * ny;
           
-          // Separate asteroids to prevent overlap
+          // Separate asteroids to prevent overlap (simplified)
           const overlap = minDist - dist;
-          const separationRatio = overlap / 2;
           const massRatio1 = mass2 / (mass1 + mass2);
           const massRatio2 = mass1 / (mass1 + mass2);
           
@@ -2688,34 +2718,9 @@ function playSound(soundName) {
           asteroid.y += ny * overlap * massRatio1;
           otherAsteroid.x -= nx * overlap * massRatio2;
           otherAsteroid.y -= ny * overlap * massRatio2;
-          
-          // Visual feedback for collision
-          createParticles(
-            (asteroid.x + otherAsteroid.x) / 2,
-            (asteroid.y + otherAsteroid.y) / 2,
-            5
-          );
-          
-          // If one is much larger (8x mass ratio = 2x size ratio), destroy the smaller
-          const massRatio = Math.max(mass1, mass2) / Math.min(mass1, mass2);
-          if (massRatio >= 8) {
-            createParticles(
-              asteroid.size < otherAsteroid.size ? asteroid.x : otherAsteroid.x,
-              asteroid.size < otherAsteroid.size ? asteroid.y : otherAsteroid.y,
-              15
-            );
-            playSound('hit');
-            
-            // Remove the smaller asteroid
-            if (asteroid.size < otherAsteroid.size) {
-              asteroids.splice(index, 1);
-            } else {
-              asteroids.splice(otherIndex, 1);
-            }
-          }
         }
-      });
-    });
+      }
+    }
     
     // Maintain asteroid count: max 3 large (>40px) and 4 small (<=40px)
     const largeAsteroids = asteroids.filter(a => a.size > 40);
@@ -2746,10 +2751,18 @@ function playSound(soundName) {
   
   // Update bullets
   function updateBullets() {
-    bullets.forEach((bullet, index) => {
+    for (let index = bullets.length - 1; index >= 0; index--) {
+      const bullet = bullets[index];
       bullet.x += bullet.velocity.x;
       bullet.y += bullet.velocity.y;
       bullet.life--;
+      
+      // Remove dead bullets immediately
+      if (bullet.life <= 0 || bullet.x < 0 || bullet.x > canvas.width || 
+          bullet.y < 0 || bullet.y > canvas.height) {
+        bullets.splice(index, 1);
+        continue;
+      }
       
       const currentGameMode = window.getGameMode && window.getGameMode();
       
@@ -2778,12 +2791,13 @@ function playSound(soundName) {
                 
                 score += 1000; // Big points for hitting player
                 console.log('Hit other player!');
-                return;
+                continue;
               }
             }
           } else if (currentGameMode === 'anyplayer') {
             // Anyplayer mode - check collision with all other players
             const allPlayers = window.getAllPlayers ? window.getAllPlayers() : {};
+            let hitPlayer = false;
             
             for (const [playerId, player] of Object.entries(allPlayers)) {
               if (player.exploded) continue;
@@ -2805,9 +2819,11 @@ function playSound(soundName) {
                 
                 score += 1000; // Big points for hitting player
                 console.log(`Hit player ${playerId}!`);
-                return;
+                hitPlayer = true;
+                break;
               }
             }
+            if (hitPlayer) continue;
           }
         }
       }
@@ -2815,6 +2831,7 @@ function playSound(soundName) {
       // Check collision with bombs in anyplayer mode
       if (currentGameMode === 'anyplayer') {
         const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
+        let hitBomb = false;
         for (let i = bombs.length - 1; i >= 0; i--) {
           const bomb = bombs[i];
           // Don't hit your own bombs with your own bullets
@@ -2845,25 +2862,24 @@ function playSound(soundName) {
             
             score += 50; // Points for destroying bomb
             console.log('Destroyed bomb!');
-            return;
+            hitBomb = true;
+            break;
           }
         }
+        if (hitBomb) continue;
       }
-      
-      if (bullet.life <= 0 || bullet.x < 0 || bullet.x > canvas.width || 
-          bullet.y < 0 || bullet.y > canvas.height) {
-        bullets.splice(index, 1);
-      }
-    });
+    }
   }
   
   // Update particles
   function updateParticles() {
-    particles.forEach((particle, index) => {
+    for (let index = particles.length - 1; index >= 0; index--) {
+      const particle = particles[index];
+      
       // Handle delayed particles (for shockwave rings)
       if (particle.delay !== undefined) {
         particle.delay -= 16; // Subtract frame time
-        if (particle.delay > 0) return; // Don't update yet
+        if (particle.delay > 0) continue; // Don't update yet
       }
       
       particle.x += particle.velocity.x;
@@ -2873,7 +2889,7 @@ function playSound(soundName) {
       if (particle.life <= 0) {
         particles.splice(index, 1);
       }
-    });
+    }
   }
   
   function updateBombs() {
@@ -2990,10 +3006,11 @@ function playSound(soundName) {
   // Draw functions
   function drawStars() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    stars.forEach(star => {
+    for (let i = 0; i < stars.length; i++) {
+      const star = stars[i];
       ctx.globalAlpha = star.opacity;
       ctx.fillRect(star.x, star.y, star.size, star.size);
-    });
+    }
     ctx.globalAlpha = 1;
   }
   
@@ -3053,7 +3070,7 @@ function playSound(soundName) {
       ctx.strokeStyle = forcefieldColor + pulseIntensity + ')';
       ctx.lineWidth = largerForcefield ? 4 : 3;
       ctx.shadowColor = forcefieldColor + '0.8)';
-      ctx.shadowBlur = largerForcefield ? 30 : 20;
+      ctx.shadowBlur = largerForcefield ? 12 : 8;
       ctx.beginPath();
       ctx.arc(0, 0, forcefieldSize, 0, Math.PI * 2);
       ctx.stroke();
@@ -3066,7 +3083,7 @@ function playSound(soundName) {
     ctx.lineWidth = isWinning ? 3 : 2;
     if (isWinning) {
       ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 8;
     }
     ctx.beginPath();
     ctx.moveTo(ship.size, 0);
@@ -3117,7 +3134,8 @@ function playSound(soundName) {
   }
   
   function drawAsteroids() {
-    asteroids.forEach(asteroid => {
+    for (let i = 0; i < asteroids.length; i++) {
+      const asteroid = asteroids[i];
       ctx.save();
       ctx.translate(asteroid.x, asteroid.y);
       ctx.rotate(asteroid.angle);
@@ -3128,13 +3146,13 @@ function playSound(soundName) {
         ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
         ctx.lineWidth = 3;
         ctx.shadowColor = 'rgba(255, 107, 107, 0.6)';
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 8;
       } else if (asteroid.isBlue) {
         ctx.strokeStyle = 'rgba(100, 180, 255, 0.8)';
         ctx.fillStyle = 'rgba(100, 180, 255, 0.2)';
         ctx.lineWidth = 3;
         ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 8;
       } else {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
@@ -3143,12 +3161,13 @@ function playSound(soundName) {
       }
       
       ctx.beginPath();
-      asteroid.points.forEach((point, i) => {
+      for (let j = 0; j < asteroid.points.length; j++) {
+        const point = asteroid.points[j];
         const x = Math.cos(point.angle) * asteroid.size * point.radius;
         const y = Math.sin(point.angle) * asteroid.size * point.radius;
-        if (i === 0) ctx.moveTo(x, y);
+        if (j === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
-      });
+      }
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -3167,18 +3186,19 @@ function playSound(soundName) {
       }
       
       ctx.restore();
-    });
+    }
     
     ctx.shadowBlur = 0; // Reset shadow
   }
   
   function drawBullets() {
     ctx.fillStyle = 'rgba(126, 200, 255, 0.8)';
-    bullets.forEach(bullet => {
+    for (let i = 0; i < bullets.length; i++) {
+      const bullet = bullets[i];
       ctx.beginPath();
       ctx.arc(bullet.x, bullet.y, 2, 0, Math.PI * 2);
       ctx.fill();
-    });
+    }
   }
   
   function drawBombs() {
@@ -3257,10 +3277,11 @@ function playSound(soundName) {
   }
   
   function drawParticles() {
-    particles.forEach(particle => {
+    for (let i = 0; i < particles.length; i++) {
+      const particle = particles[i];
       ctx.fillStyle = `rgba(255, 255, 255, ${particle.life * 0.6})`;
       ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
-    });
+    }
   }
   
   // Draw HUD (score and lives)
@@ -3411,9 +3432,8 @@ function playSound(soundName) {
   
   // Main game loop
   function gameLoop() {
-    // Clear canvas
-    ctx.fillStyle = 'rgba(8, 16, 26, 0.1)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas - use clearRect for better performance
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (!gamePaused) {
       // Check game mode - adjust spawning based on mode
