@@ -34,7 +34,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; connect-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:");
   next();
 });
 
@@ -113,6 +113,9 @@ let gameState = {
   ufos: [],
   ufoBullets: []
 };
+let anyPlayerHostId = null;
+let anyPlayerGameState = null;
+let anyPlayerStateVersion = 0;
 
 wss.on('connection', (ws) => {
   const playerId = generatePlayerId();
@@ -141,7 +144,8 @@ wss.on('connection', (ws) => {
     type: 'connected',
     playerId,
     isFirstPlayer,
-    otherPlayers: existingPlayers.filter(id => id !== playerId)
+    otherPlayers: existingPlayers.filter(id => id !== playerId),
+    anyPlayerCount: anyPlayerLobby.length
   }));
   
   // If there's another player, notify them
@@ -227,6 +231,24 @@ wss.on('connection', (ws) => {
             gameState
           });
           break;
+
+        case 'anyplayer_state_update':
+          if (playerId !== anyPlayerHostId) {
+            console.warn(`Ignoring anyplayer_state_update from non-host ${playerId}`);
+            break;
+          }
+          if (data.gameState) {
+            const sanitizedState = sanitizeAnyPlayerGameState(data.gameState);
+            if (sanitizedState) {
+              anyPlayerGameState = sanitizedState;
+              broadcastToAnyPlayerLobby({
+                type: 'anyplayer_state',
+                hostId: anyPlayerHostId,
+                gameState: anyPlayerGameState
+              });
+            }
+          }
+          break;
           
         case 'bullet_fired':
           // Broadcast bullet fired
@@ -234,6 +256,14 @@ wss.on('connection', (ws) => {
             type: 'bullet_fired',
             playerId,
             bullet: data.bullet
+          });
+          break;
+
+        case 'heat_seeker_launch':
+          broadcastToAll({
+            type: 'heat_seeker_launch',
+            playerId,
+            missile: data.missile
           });
           break;
           
@@ -244,6 +274,30 @@ wss.on('connection', (ws) => {
             playerId,
             powerups: data.powerups
           });
+          break;
+
+        case 'powerup_transfer':
+          if (!data || !data.targetId || !data.powerups) {
+            break;
+          }
+          if (!players[playerId]) {
+            break;
+          }
+          const recipient = players[data.targetId];
+          if (recipient && recipient.ws.readyState === 1) {
+            try {
+              recipient.ws.send(JSON.stringify({
+                type: 'powerup_transfer',
+                fromPlayerId: playerId,
+                targetId: data.targetId,
+                powerups: data.powerups,
+                mode: data.mode || players[playerId].mode || 'vs',
+                context: data.context || null
+              }));
+            } catch (err) {
+              console.error('Error forwarding powerup_transfer:', err.message);
+            }
+          }
           break;
           
         case 'player_hit':
@@ -326,12 +380,22 @@ wss.on('connection', (ws) => {
   
   ws.on('close', () => {
     console.log(`Player ${playerId} disconnected`);
+    const wasAnyPlayerHost = playerId === anyPlayerHostId;
     
     // Remove from anyplayer lobby if in it
     const lobbyIndex = anyPlayerLobby.indexOf(playerId);
     if (lobbyIndex > -1) {
       anyPlayerLobby.splice(lobbyIndex, 1);
       console.log(`Removed ${playerId} from anyplayer lobby. Remaining: ${anyPlayerLobby.length}`);
+      
+      // Broadcast updated lobby count
+      broadcastLobbyCount();
+      if (wasAnyPlayerHost) {
+        reassignAnyPlayerHost();
+      } else if (anyPlayerLobby.length === 0) {
+        anyPlayerHostId = null;
+        anyPlayerGameState = null;
+      }
     }
     
     delete players[playerId];
@@ -392,12 +456,28 @@ function handleJoinAnyPlayer(playerId) {
     anyPlayerLobby.push(playerId);
     console.log(`Player ${playerId} joined anyplayer lobby. Total players: ${anyPlayerLobby.length}`);
   }
+  const previousHost = anyPlayerHostId;
+  if (!anyPlayerHostId || !players[anyPlayerHostId]) {
+    anyPlayerHostId = playerId;
+    console.log(`Anyplayer host set to ${anyPlayerHostId}`);
+  }
   
   // Send list of all players in the lobby
   players[playerId].ws.send(JSON.stringify({
     type: 'anyplayer_players',
     players: anyPlayerLobby.filter(id => id !== playerId)
   }));
+  if (anyPlayerGameState) {
+    sendAnyplayerStateToPlayer(playerId);
+  }
+  if (!previousHost || previousHost !== anyPlayerHostId) {
+    announceAnyPlayerHost();
+  } else {
+    announceAnyPlayerHost(playerId);
+  }
+  
+  // Broadcast updated lobby count to ALL connected players
+  broadcastLobbyCount();
   
   // Notify all other players in lobby about new player
   anyPlayerLobby.forEach(pId => {
@@ -408,6 +488,123 @@ function handleJoinAnyPlayer(playerId) {
       }));
     }
   });
+}
+
+function broadcastLobbyCount() {
+  const count = anyPlayerLobby.length;
+  Object.keys(players).forEach(id => {
+    if (players[id] && players[id].ws.readyState === 1) {
+      try {
+        players[id].ws.send(JSON.stringify({
+          type: 'lobby_count',
+          count: count
+        }));
+      } catch (err) {
+        console.error(`Error broadcasting lobby count to ${id}:`, err.message);
+      }
+    }
+  });
+}
+
+function broadcastToAnyPlayerLobby(message, excludeId = null) {
+  if (!message) return;
+  const payload = JSON.stringify(message);
+  anyPlayerLobby.forEach(pid => {
+    if (pid === excludeId) return;
+    const target = players[pid];
+    if (target && target.ws.readyState === 1) {
+      try {
+        target.ws.send(payload);
+      } catch (err) {
+        console.error(`Error broadcasting to anyplayer member ${pid}:`, err.message);
+      }
+    }
+  });
+}
+
+function announceAnyPlayerHost(targetIds) {
+  const ids = targetIds ? (Array.isArray(targetIds) ? targetIds : [targetIds]) : anyPlayerLobby;
+  ids.forEach(id => {
+    const target = players[id];
+    if (target && target.ws.readyState === 1) {
+      const message = {
+        type: 'anyplayer_host',
+        hostId: anyPlayerHostId
+      };
+      if (id === anyPlayerHostId && anyPlayerGameState) {
+        message.gameState = anyPlayerGameState;
+      }
+      try {
+        target.ws.send(JSON.stringify(message));
+      } catch (err) {
+        console.error(`Error notifying ${id} about anyplayer host:`, err.message);
+      }
+    }
+  });
+}
+
+function safeCloneArray(collection, maxItems) {
+  if (!Array.isArray(collection)) return [];
+  const trimmed = collection.slice(0, maxItems);
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(trimmed);
+    } catch (err) {
+      // Ignore and fall back to JSON clone.
+    }
+  }
+  return JSON.parse(JSON.stringify(trimmed));
+}
+
+function sanitizeAnyPlayerGameState(state) {
+  if (!state || typeof state !== 'object') return null;
+  const sanitized = {
+    timestamp: Date.now(),
+    asteroids: safeCloneArray(state.asteroids, 120),
+    ufos: safeCloneArray(state.ufos, 25),
+    ufoBullets: safeCloneArray(state.ufoBullets, 150),
+    superBonuses: safeCloneArray(state.superBonuses, 25),
+    bombs: safeCloneArray(state.bombs, 60),
+    shootingStars: safeCloneArray(state.shootingStars, 40),
+    heatSeekers: safeCloneArray(state.heatSeekers, 50)
+  };
+  anyPlayerStateVersion += 1;
+  sanitized.version = anyPlayerStateVersion;
+  sanitized.hostId = anyPlayerHostId;
+  return sanitized;
+}
+
+function sendAnyplayerStateToPlayer(playerId, options = {}) {
+  if (!anyPlayerGameState || !players[playerId]) return;
+  const payload = {
+    type: 'anyplayer_state',
+    hostId: anyPlayerHostId,
+    gameState: anyPlayerGameState
+  };
+  if (options.forceApply) {
+    payload.forceApply = true;
+  }
+  try {
+    players[playerId].ws.send(JSON.stringify(payload));
+  } catch (err) {
+    console.error(`Error sending anyplayer state to ${playerId}:`, err.message);
+  }
+}
+
+function reassignAnyPlayerHost() {
+  if (anyPlayerLobby.length === 0) {
+    anyPlayerHostId = null;
+    anyPlayerGameState = null;
+    return;
+  }
+  anyPlayerHostId = anyPlayerLobby[0] || null;
+  if (anyPlayerGameState) {
+    anyPlayerGameState.hostId = anyPlayerHostId;
+  }
+  announceAnyPlayerHost();
+  if (anyPlayerHostId && anyPlayerGameState) {
+    sendAnyplayerStateToPlayer(anyPlayerHostId, { forceApply: true });
+  }
 }
 
 function broadcastToOthers(excludeId, message) {

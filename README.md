@@ -42,6 +42,16 @@ asterocks/
 - **VS Mode** - 1v1 Player vs Player combat
 - **Battle Royale** - Join any player's game dynamically with multiple opponents
 
+## ☁️ Firebase Sync
+
+Co-op and VS games now mirror their critical state through Firebase Firestore in addition to WebSockets. Each two-player match writes to `matches/{mode}_{playerA}_{playerB}` with per-player snapshots so:
+
+- Ship position/velocity, score, lives, kills/deaths, and thrust state stay in sync if a WebSocket hiccups.
+- Co-op power-ups merge in the cloud, ensuring both players keep shared upgrades even if one drops temporarily.
+- Presence documents are removed when players leave or close the tab to keep sessions tidy.
+
+To enable cloud sync, keep the Firebase keys in `.env` (see `.env.example`) and configure Firestore security rules so your client (ideally via authenticated access) can read/write the `matches` collection from the allowed web origin.
+
 ## 🔒 Security
 
 This project includes comprehensive security hardening:

@@ -151,7 +151,8 @@ wss.on('connection', (ws) => {
     type: 'connected',
     playerId,
     isFirstPlayer,
-    otherPlayers: existingPlayers.filter(id => id !== playerId)
+    otherPlayers: existingPlayers.filter(id => id !== playerId),
+    anyPlayerCount: anyPlayerLobby.length
   }));
   
   // If there's another player, notify them
@@ -251,12 +252,26 @@ wss.on('connection', (ws) => {
           break;
           
         case 'game_sync':
-          // Sync game state (asteroids, bullets, etc.) from host
+          // Sync game state (asteroids, bullets, UFOs, etc.) from host
           gameState = data.gameState;
-          broadcastToOthers(playerId, {
-            type: 'game_state',
-            gameState
-          });
+          
+          // In anyplayer mode, broadcast only to anyplayer lobby
+          if (players[playerId]?.mode === 'anyplayer') {
+            anyPlayerLobby.forEach(pId => {
+              if (pId !== playerId && players[pId]) {
+                players[pId].ws.send(JSON.stringify({
+                  type: 'game_state',
+                  gameState
+                }));
+              }
+            });
+          } else {
+            // Regular 2-player modes
+            broadcastToOthers(playerId, {
+              type: 'game_state',
+              gameState
+            });
+          }
           break;
           
         case 'bullet_fired':
@@ -375,6 +390,19 @@ wss.on('connection', (ws) => {
     if (lobbyIndex > -1) {
       anyPlayerLobby.splice(lobbyIndex, 1);
       console.log(`Removed ${playerId} from anyplayer lobby. Remaining: ${anyPlayerLobby.length}`);
+      
+      // Notify remaining players of updated player list (for host reassignment)
+      anyPlayerLobby.forEach(pId => {
+        if (players[pId]) {
+          players[pId].ws.send(JSON.stringify({
+            type: 'anyplayer_players',
+            players: anyPlayerLobby.filter(id => id !== pId)
+          }));
+        }
+      });
+      
+      // Broadcast updated lobby count
+      broadcastLobbyCount();
     }
     
     delete players[playerId];
@@ -448,6 +476,9 @@ function handleJoinAnyPlayer(playerId) {
     players: anyPlayerLobby.filter(id => id !== playerId)
   }));
   
+  // Broadcast updated lobby count to ALL connected players
+  broadcastLobbyCount();
+  
   // Notify all other players in lobby about new player
   anyPlayerLobby.forEach(pId => {
     if (pId !== playerId && players[pId]) {
@@ -455,6 +486,22 @@ function handleJoinAnyPlayer(playerId) {
         type: 'anyplayer_players',
         players: anyPlayerLobby.filter(id => id !== pId)
       }));
+    }
+  });
+}
+
+function broadcastLobbyCount() {
+  const count = anyPlayerLobby.length;
+  Object.keys(players).forEach(id => {
+    if (players[id] && players[id].ws.readyState === 1) {
+      try {
+        players[id].ws.send(JSON.stringify({
+          type: 'lobby_count',
+          count: count
+        }));
+      } catch (err) {
+        console.error(`Error broadcasting lobby count to ${id}:`, err.message);
+      }
     }
   });
 }
