@@ -4529,6 +4529,17 @@ function playSound(soundName) {
       const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
       const isVsMode = gameMode === 'vs';
       const isAnyPlayerMode = gameMode === 'anyplayer';
+      const isMultiplayerGame = typeof window.isMultiplayerActive === 'function' ? window.isMultiplayerActive() : false;
+      const isWorldAuthority = (() => {
+        if (!isMultiplayerGame) return true;
+        if (isAnyPlayerMode) {
+          return typeof window.isAnyPlayerHostActive === 'function' ? window.isAnyPlayerHostActive() : false;
+        }
+        if (gameMode === 'coop' || gameMode === 'vs') {
+          return typeof window.isMultiplayerHost === 'function' ? window.isMultiplayerHost() : false;
+        }
+        return true;
+      })();
       
       if (!isVsMode) {
         const now = Date.now();
@@ -4540,42 +4551,44 @@ function playSound(soundName) {
           console.log('💣 Bomb count refreshed! You have 5 bombs available.');
         }
         
-        // Reduced spawning in anyplayer mode (battle royale focuses on PvP)
-        const asteroidMultiplier = isAnyPlayerMode ? 2.5 : 1; // 2.5x slower in anyplayer
-        const ufoMultiplier = isAnyPlayerMode ? 3 : 1; // 3x slower in anyplayer
-        const alienMultiplier = isAnyPlayerMode ? 4 : 1; // 4x slower in anyplayer
-        
-        // Spawn huge asteroid periodically
-        if (now - lastHugeAsteroidTime >= HUGE_ASTEROID_INTERVAL * asteroidMultiplier) {
-          spawnHugeAsteroid();
-          lastHugeAsteroidTime = now;
-        }
-        
-        // Spawn UFO randomly
-        if (now - lastUfoTime >= nextUfoInterval * ufoMultiplier) {
-          spawnUfo();
-          lastUfoTime = now;
-          nextUfoInterval = 20000 + Math.random() * 15000; // New random interval for next UFO
-        }
-        
-        // Spawn Alien rarely
-        if (now - lastAlienTime >= nextAlienInterval * alienMultiplier) {
-          spawnAlien();
-          lastAlienTime = now;
-          nextAlienInterval = 45000 + Math.random() * 30000; // 45-75 seconds
-        }
+        if (isWorldAuthority) {
+          // Reduced spawning in anyplayer mode (battle royale focuses on PvP)
+          const asteroidMultiplier = isAnyPlayerMode ? 2.5 : 1; // 2.5x slower in anyplayer
+          const ufoMultiplier = isAnyPlayerMode ? 3 : 1; // 3x slower in anyplayer
+          const alienMultiplier = isAnyPlayerMode ? 4 : 1; // 4x slower in anyplayer
+          
+          // Spawn huge asteroid periodically
+          if (now - lastHugeAsteroidTime >= HUGE_ASTEROID_INTERVAL * asteroidMultiplier) {
+            spawnHugeAsteroid();
+            lastHugeAsteroidTime = now;
+          }
+          
+          // Spawn UFO randomly
+          if (now - lastUfoTime >= nextUfoInterval * ufoMultiplier) {
+            spawnUfo();
+            lastUfoTime = now;
+            nextUfoInterval = 20000 + Math.random() * 15000; // New random interval for next UFO
+          }
+          
+          // Spawn Alien rarely
+          if (now - lastAlienTime >= nextAlienInterval * alienMultiplier) {
+            spawnAlien();
+            lastAlienTime = now;
+            nextAlienInterval = 45000 + Math.random() * 30000; // 45-75 seconds
+          }
 
-        // Spawn shooting star rocks frequently (disabled via flag)
-        if (SHOOTING_STARS_ENABLED && now - lastShootingStarTime >= nextShootingStarInterval) {
-          spawnShootingStar();
-          lastShootingStarTime = now;
-          nextShootingStarInterval = 12000 + Math.random() * 6000;
-        }
-        
-        // Spawn Super Bonuses in Battle Royale mode
-        if (isAnyPlayerMode && now - lastSuperBonusTime >= SUPER_BONUS_INTERVAL) {
-          spawnSuperBonus();
-          lastSuperBonusTime = now;
+          // Spawn shooting star rocks frequently (disabled via flag)
+          if (SHOOTING_STARS_ENABLED && now - lastShootingStarTime >= nextShootingStarInterval) {
+            spawnShootingStar();
+            lastShootingStarTime = now;
+            nextShootingStarInterval = 12000 + Math.random() * 6000;
+          }
+          
+          // Spawn Super Bonuses in Battle Royale mode
+          if (isAnyPlayerMode && now - lastSuperBonusTime >= SUPER_BONUS_INTERVAL) {
+            spawnSuperBonus();
+            lastSuperBonusTime = now;
+          }
         }
       }
       
@@ -5373,6 +5386,8 @@ function playSound(soundName) {
   let isAnyPlayerHost = false;
   let lastAnyPlayerSyncSent = 0;
   const ANYPLAYER_SYNC_INTERVAL = 250; // ms between shared-world snapshots
+  const GAME_SYNC_INTERVAL = 150; // ms between co-op/VS world snapshots
+  let lastGameSyncSent = 0;
   const firebaseHelpers = window.firebaseHelpers || null;
   const cloneForSync = (value) => {
     if (value === undefined || value === null) return value;
@@ -5382,6 +5397,40 @@ function playSound(soundName) {
       return null;
     }
   };
+
+  function captureSharedGameState() {
+    try {
+      if (typeof window.captureAnyPlayerState === 'function') {
+        const snapshot = window.captureAnyPlayerState();
+        if (snapshot) {
+          return snapshot;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to capture shared game state:', err.message || err);
+    }
+    const fallbackAsteroids = window.getAsteroids ? window.getAsteroids() : [];
+    return {
+      asteroids: cloneForSync(fallbackAsteroids) || []
+    };
+  }
+
+  function applySharedGameStateFromHost(gameState) {
+    if (!gameState) return;
+    if (typeof window.applyAnyPlayerState === 'function') {
+      window.applyAnyPlayerState(gameState, { myPlayerId });
+      return;
+    }
+    const gameAsteroids = window.getAsteroids ? window.getAsteroids() : null;
+    if (gameAsteroids && Array.isArray(gameState.asteroids)) {
+      gameAsteroids.length = 0;
+      gameState.asteroids.forEach(asteroid => {
+        if (asteroid) {
+          gameAsteroids.push(asteroid);
+        }
+      });
+    }
+  }
 
   window.applyFirebaseRemoteState = (payload) => {
     if (!payload || !payload.state) return;
@@ -5839,14 +5888,9 @@ function playSound(soundName) {
         
       case 'game_state':
         // Sync game state from host (if we're not host)
-        if (!isHost && isMultiplayer) {
-          // Update asteroids, bullets, etc. from host
-          const gameAsteroids = window.getAsteroids();
-          const gameBullets = window.getBullets ? window.getBullets() : [];
-          
-          if (gameAsteroids && data.gameState.asteroids) {
-            gameAsteroids.length = 0;
-            gameAsteroids.push(...data.gameState.asteroids);
+        if (!isHost && isMultiplayer && (gameMode === 'coop' || gameMode === 'vs')) {
+          if (data.gameState) {
+            applySharedGameStateFromHost(data.gameState);
           }
         }
         break;
@@ -6235,18 +6279,22 @@ function playSound(soundName) {
         }
       }
       
-      // If host, sync game state
-      if (isHost) {
-        const asteroids = window.getAsteroids ? window.getAsteroids() : [];
-        try {
-          ws.send(JSON.stringify({
-            type: 'game_sync',
-            gameState: {
-              asteroids: asteroids
+      // If host, sync game state for 2-player modes
+      if (isHost && (gameMode === 'coop' || gameMode === 'vs')) {
+        const now = Date.now();
+        if (now - lastGameSyncSent >= GAME_SYNC_INTERVAL) {
+          const sharedState = captureSharedGameState();
+          if (sharedState) {
+            try {
+              ws.send(JSON.stringify({
+                type: 'game_sync',
+                gameState: sharedState
+              }));
+              lastGameSyncSent = now;
+            } catch (e) {
+              console.error('Error sending game_sync:', e.message);
             }
-          }));
-        } catch (e) {
-          console.error('Error sending game_sync:', e.message);
+          }
         }
       }
 
@@ -6434,6 +6482,9 @@ function playSound(soundName) {
       }));
     }
   };
+
+  window.isMultiplayerHost = () => isHost;
+  window.isAnyPlayerHostActive = () => isAnyPlayerHost;
 
 
   window.addEventListener('beforeunload', () => {
