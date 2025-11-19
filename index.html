@@ -9,8 +9,7 @@
     body {
       margin: 0;
       padding: 24px;
-      background: url('back.png') center center / cover no-repeat, #08101a;
-      background-attachment: fixed;
+      background: #08101a;
       color: #e6eef8;
       display: flex;
       align-items: center;
@@ -581,6 +580,10 @@
       letter-spacing: 3px;
       animation: screenSaverPulse 3s ease-in-out infinite;
       text-shadow: 0 0 20px rgba(126, 240, 163, 0.5);
+    }
+    
+    .screensaver-logo::after {
+      content: attr(data-text);
     }
 
     .screensaver-subtitle {
@@ -1173,8 +1176,8 @@
   <div id="screenSaverOverlay">
     <div class="screensaver-particles" id="screensaverParticles"></div>
     <div class="screensaver-content">
-      <div class="screensaver-logo">ATLAS</div>
-      <div class="screensaver-subtitle">Brightness Tracker</div>
+      <div class="screensaver-logo">ASTEROCKS</div>
+      <div class="screensaver-subtitle">Multiplayer Asteroid Game</div>
       <div class="screensaver-status" id="screensaverStatus">Monitoring...</div>
       <div class="screensaver-hint">Move mouse or press any key to resume</div>
     </div>
@@ -2410,6 +2413,7 @@ function playSound(soundName) {
   let gamePaused = false;
   // soundEnabled is global (defined outside this scope)
   let dualCannon = false; // Powerup from destroying UFO
+  let vsKills = 0; // Kill counter for VS mode
   
   // Create background stars
   for (let i = 0; i < 150; i++) {
@@ -2495,6 +2499,10 @@ function playSound(soundName) {
       console.log(`Hit by other player! Lives remaining: ${lives}`);
       
       if (lives <= 0) {
+        // Opponent killed us - they get a kill
+        if (window.broadcastKill) {
+          window.broadcastKill();
+        }
         gameOver = true;
         const modeText = gameMode === 'anyplayer' ? 'Battle Royale' : 'VS Mode';
         console.log(`GAME OVER - Defeated in ${modeText}!`);
@@ -4255,18 +4263,24 @@ function playSound(soundName) {
     ctx.save();
     ctx.shadowBlur = 0;
     
-    // Score (top left)
+    // Score (top left) - or Kills in VS mode
     ctx.fillStyle = 'rgba(126, 240, 163, 0.9)';
     ctx.font = 'bold 24px system-ui';
     ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${score}`, 20, 40);
+    const hudGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+    const hudDisplayText = hudGameMode === 'vs' ? `Kills: ${vsKills}` : `Score: ${score}`;
+    ctx.fillText(hudDisplayText, 20, 40);
     
     // Game mode indicator
     if (window.isMultiplayerActive && window.isMultiplayerActive()) {
       const labelGameMode = window.getGameMode ? window.getGameMode() : 'coop';
       
-      // Only show indicator for VS and anyplayer modes, not co-op
-      if (labelGameMode === 'vs') {
+      if (labelGameMode === 'coop') {
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
+        ctx.font = 'bold 24px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('CO-OP', canvas.width / 2, 40);
+      } else if (labelGameMode === 'vs') {
         ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
         ctx.font = 'bold 14px system-ui';
         ctx.textAlign = 'left';
@@ -4282,7 +4296,6 @@ function playSound(soundName) {
         ctx.font = 'bold 16px system-ui';
         ctx.fillText(`💣 Bombs: ${bombCount}/${MAX_BOMBS}`, 20, 87);
       }
-      // Don't show anything for co-op mode
     }
     
     // Lives (top right) - draw ship icons
@@ -4358,7 +4371,7 @@ function playSound(soundName) {
       if (currentGameMode === 'anyplayer') {
         ctx.fillText(`Battle Royale - Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
       } else if (currentGameMode === 'vs') {
-        ctx.fillText(`VS Mode - Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+        ctx.fillText(`VS Mode - Final Kills: ${vsKills}`, canvas.width / 2, canvas.height / 2 + 50);
       } else if (currentGameMode === 'coop') {
         ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
       } else {
@@ -4474,6 +4487,23 @@ function playSound(soundName) {
     drawBullets();
     drawParticles();
     drawHUD();
+    
+    // Draw multiplayer elements (other players)
+    const isMultiplayerActive = window.isMultiplayerActive && window.isMultiplayerActive();
+    if (isMultiplayerActive) {
+      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+      if (gameMode === 'anyplayer') {
+        // Draw all players in battle royale
+        if (window.drawAllPlayers) {
+          window.drawAllPlayers();
+        }
+      } else {
+        // Draw single other player in 2-player modes
+        if (window.drawOtherPlayerShip) {
+          window.drawOtherPlayerShip();
+        }
+      }
+    }
     
     requestAnimationFrame(gameLoop);
   }
@@ -5144,11 +5174,13 @@ function playSound(soundName) {
     
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      console.error('WebSocket error details:', error.message || error);
       lobbyStatus.textContent = 'Connection error - Playing solo';
     };
     
     ws.onclose = () => {
       console.log('WebSocket disconnected');
+      console.log(`WebSocket close code: ${ws.code}, reason: ${ws.reason}`);
       if (isMultiplayer) {
         // Show notification that other player left
         console.log('Multiplayer session ended');
@@ -5164,6 +5196,7 @@ function playSound(soundName) {
         myPlayerId = data.playerId;
         isHost = data.isFirstPlayer;
         console.log(`Connected as ${myPlayerId} (${isHost ? 'Host' : 'Guest'})`);
+        console.log(`Other players available: ${data.otherPlayers ? data.otherPlayers.length : 0}`);
         
         if (data.otherPlayers && data.otherPlayers.length > 0) {
           lobbyStatus.textContent = 'Another player is online!';
@@ -5191,6 +5224,7 @@ function playSound(soundName) {
         if (!isMultiplayer) {
           pendingJoinRequest = data.playerId;
           const mode = data.mode || 'coop';
+          console.log(`Received join_request from ${data.playerId} with mode: ${mode}`);
           const joinRequestMessage = document.getElementById('joinRequestMessage');
           const joinRequestMode = document.getElementById('joinRequestMode');
           
@@ -5205,22 +5239,29 @@ function playSound(soundName) {
           }
           
           pendingJoinRequestMode = mode;
+          console.log(`Set pendingJoinRequestMode to: ${pendingJoinRequestMode}`);
           joinRequestOverlay.classList.add('active');
         }
         break;
         
       case 'join_response':
+        console.log(`Received join_response: accepted=${data.accepted}, mode=${data.mode}`);
         if (data.accepted) {
+          console.log(`Calling startMultiplayerGame with mode: ${data.mode || 'coop'}`);
           startMultiplayerGame(data.playerId, data.mode || 'coop');
         } else {
           alert('Join request declined');
           lobbyOverlay.classList.add('active');
+          coopPlayBtn.disabled = false;
+          vsPlayBtn.disabled = false;
+          soloPlayBtn.disabled = false;
         }
         break;
         
       case 'player_state':
         // Update other player's ship with interpolation
         if (data.playerId !== myPlayerId && isMultiplayer) {
+          console.log(`Received player_state from ${data.playerId}: x=${data.state.x.toFixed(0)}, y=${data.state.y.toFixed(0)}`);
           if (gameMode === 'anyplayer') {
             // In anyplayer mode, track all players
             if (!allPlayers[data.playerId]) {
@@ -5303,6 +5344,14 @@ function playSound(soundName) {
           if (window.handlePlayerHit) {
             window.handlePlayerHit();
           }
+        }
+        break;
+
+      case 'player_killed':
+        // Other player was killed by us
+        if (gameMode === 'vs') {
+          vsKills++;
+          console.log(`💀 Got a kill! Total kills: ${vsKills}`);
         }
         break;
         
@@ -5404,8 +5453,10 @@ function playSound(soundName) {
   }
   
   function startMultiplayerGame(partnerPlayerId, mode) {
+    console.log(`startMultiplayerGame called: partnerPlayerId=${partnerPlayerId}, mode=${mode}`);
     isMultiplayer = true;
     gameMode = mode || 'coop';
+    console.log(`Set gameMode to: ${gameMode}, isMultiplayer to: ${isMultiplayer}`);
     otherPlayerId = partnerPlayerId;
     lobbyOverlay.classList.remove('active');
     joinRequestOverlay.classList.remove('active');
@@ -5447,6 +5498,7 @@ function playSound(soundName) {
       lobbyStatus.textContent = 'Sending co-op request...';
       coopPlayBtn.disabled = true;
       vsPlayBtn.disabled = true;
+      soloPlayBtn.disabled = true;
     }
   });
   
@@ -5461,6 +5513,7 @@ function playSound(soundName) {
       lobbyStatus.textContent = 'Sending VS challenge...';
       coopPlayBtn.disabled = true;
       vsPlayBtn.disabled = true;
+      soloPlayBtn.disabled = true;
     }
   });
   
@@ -5489,13 +5542,16 @@ function playSound(soundName) {
   });
   
   acceptJoinBtn.addEventListener('click', () => {
+    console.log(`Accept button clicked. pendingJoinRequest=${pendingJoinRequest}, pendingJoinRequestMode=${pendingJoinRequestMode}`);
     if (pendingJoinRequest && ws && ws.readyState === WebSocket.OPEN) {
+      console.log(`Sending join_response with accepted=true, mode=${pendingJoinRequestMode}`);
       ws.send(JSON.stringify({
         type: 'join_response',
         requestingPlayerId: pendingJoinRequest,
         accepted: true,
         mode: pendingJoinRequestMode
       }));
+      console.log(`Calling startMultiplayerGame with mode: ${pendingJoinRequestMode}`);
       startMultiplayerGame(pendingJoinRequest, pendingJoinRequestMode);
       pendingJoinRequest = null;
     }
@@ -5521,41 +5577,53 @@ function playSound(soundName) {
       const score = window.getScore ? window.getScore() : 0;
       
       if (ship) {
-        ws.send(JSON.stringify({
-          type: 'state_update',
-          state: {
-            x: ship.x,
-            y: ship.y,
-            angle: ship.angle,
-            velocity: ship.velocity,
-            exploded: ship.exploded,
-            thrust: ship.thrust,
-            lives: lives,
-            score: score
-          }
-        }));
+        try {
+          ws.send(JSON.stringify({
+            type: 'state_update',
+            state: {
+              x: ship.x,
+              y: ship.y,
+              angle: ship.angle,
+              velocity: ship.velocity,
+              exploded: ship.exploded,
+              thrust: ship.thrust,
+              lives: lives,
+              score: score
+            }
+          }));
+        } catch (e) {
+          console.error('Error sending state_update:', e.message);
+        }
       }
       
       // Sync powerups in co-op mode
       if (gameMode === 'coop') {
         const powerups = window.getPowerups ? window.getPowerups() : null;
         if (powerups) {
-          ws.send(JSON.stringify({
-            type: 'powerup_sync',
-            powerups: powerups
-          }));
+          try {
+            ws.send(JSON.stringify({
+              type: 'powerup_sync',
+              powerups: powerups
+            }));
+          } catch (e) {
+            console.error('Error sending powerup_sync:', e.message);
+          }
         }
       }
       
       // If host, sync game state
       if (isHost) {
         const asteroids = window.getAsteroids ? window.getAsteroids() : [];
-        ws.send(JSON.stringify({
-          type: 'game_sync',
-          gameState: {
-            asteroids: asteroids
-          }
-        }));
+        try {
+          ws.send(JSON.stringify({
+            type: 'game_sync',
+            gameState: {
+              asteroids: asteroids
+            }
+          }));
+        } catch (e) {
+          console.error('Error sending game_sync:', e);
+        }
       }
     }
   }, 50); // 20 times per second for smoother sync
@@ -5590,7 +5658,10 @@ function playSound(soundName) {
   window.getOtherPlayerShip = () => otherPlayerShip;
   window.getAllPlayers = () => allPlayers;
   window.isMultiplayerActive = () => isMultiplayer;
-  window.getGameMode = () => gameMode;
+  window.getGameMode = () => {
+    //console.log(`getGameMode called, returning: ${gameMode}`);
+    return gameMode;
+  };
   window.getMyPlayerId = () => myPlayerId;
   window.getOtherPlayerId = () => otherPlayerId;
   window.getPlayerColor = getPlayerColor;
@@ -5654,6 +5725,15 @@ function playSound(soundName) {
       }));
     }
   };
+
+  // Broadcast a kill in VS mode
+  window.broadcastKill = () => {
+    if (isMultiplayer && gameMode === 'vs' && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'player_killed'
+      }));
+    }
+  };
   
   // Show lobby on page load
   lobbyOverlay.classList.add('active');
@@ -5670,7 +5750,16 @@ function playSound(soundName) {
   // Draw other player's ship (for 2-player modes)
   function drawOtherPlayerShip() {
     const otherShip = window.getOtherPlayerShip ? window.getOtherPlayerShip() : null;
-    if (!otherShip || otherShip.exploded || !window.isMultiplayerActive()) return;
+    const isMultiplayer = window.isMultiplayerActive ? window.isMultiplayerActive() : false;
+    if (!otherShip) {
+      return;
+    }
+    if (!isMultiplayer) {
+      return;
+    }
+    if (otherShip.exploded) {
+      return;
+    }
     
     const canvas = document.getElementById('asteroidCanvas');
     const ctx = canvas.getContext('2d');
@@ -5824,22 +5913,9 @@ function playSound(soundName) {
   const canvas = document.getElementById('asteroidCanvas');
   const originalRequestAnimationFrame = window.requestAnimationFrame;
   
-  // Add to existing game render cycle
-  setInterval(() => {
-    if (window.isMultiplayerActive && window.isMultiplayerActive()) {
-      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
-      
-      if (gameMode === 'anyplayer') {
-        // Draw all players in battle royale
-        drawAllPlayers();
-        // Update player list UI
-        updatePlayerList();
-      } else {
-        // Draw single other player in 2-player modes
-        drawOtherPlayerShip();
-      }
-    }
-  }, 16); // ~60fps
+  // Expose drawing functions to be called from the game loop
+  window.drawOtherPlayerShip = drawOtherPlayerShip;
+  window.drawAllPlayers = drawAllPlayers;
   
   // Update player list more frequently
   setInterval(() => {

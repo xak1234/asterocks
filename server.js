@@ -186,6 +186,8 @@ wss.on('connection', (ws) => {
         return;
       }
       
+      console.log(`[${playerId}] Received message type: ${data.type}`);
+      
       switch(data.type) {
         case 'join_request':
           // Player wants to join another player's game
@@ -206,6 +208,7 @@ wss.on('connection', (ws) => {
           // Update player state
           if (players[playerId]) {
             players[playerId].state = data.state;
+            console.log(`state_update from ${playerId}: x=${Math.round(data.state.x)}, y=${Math.round(data.state.y)}`);
             
             // In anyplayer mode, broadcast to all in lobby
             if (players[playerId].mode === 'anyplayer') {
@@ -262,6 +265,14 @@ wss.on('connection', (ws) => {
             type: 'player_hit',
             playerId,
             targetId: data.targetId
+          });
+          break;
+
+        case 'player_killed':
+          // Broadcast player kill in VS mode
+          broadcastToAll({
+            type: 'player_killed',
+            playerId
           });
           break;
           
@@ -328,6 +339,10 @@ wss.on('connection', (ws) => {
             }));
           }
           break;
+          
+        default:
+          console.log(`Unknown message type: ${data.type}`);
+          break;
       }
     } catch (e) {
       console.error('WebSocket message error:', e.message);
@@ -372,6 +387,8 @@ function handleJoinRequest(playerId, data) {
 
 function handleJoinResponse(playerId, data) {
   const requestingPlayerId = data.requestingPlayerId;
+  console.log(`handleJoinResponse called: playerId=${playerId}, requestingPlayerId=${requestingPlayerId}, accepted=${data.accepted}, mode=${data.mode}`);
+  
   if (players[requestingPlayerId]) {
     const mode = data.mode || 'coop';
     
@@ -382,13 +399,17 @@ function handleJoinResponse(playerId, data) {
       console.log(`Players ${playerId} and ${requestingPlayerId} starting ${mode} mode`);
     }
     
+    console.log(`Sending join_response to ${requestingPlayerId}: accepted=${data.accepted}, mode=${mode}`);
     players[requestingPlayerId].ws.send(JSON.stringify({
       type: 'join_response',
       accepted: data.accepted,
       playerId: playerId,
       mode: mode
     }));
+  } else {
+    console.log(`ERROR: Requesting player ${requestingPlayerId} not found!`);
   }
+}
 }
 
 function handleJoinAnyPlayer(playerId) {
