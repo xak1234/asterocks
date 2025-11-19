@@ -1554,6 +1554,38 @@ function playSound(soundName) {
   }
 }
 
+const assetAudioSources = {
+  seek: 'assets/seek.mp3',
+  countdown: 'assets/2sec.mp3',
+  bomb: 'assets/bomb.mp3',
+  hyper: 'assets/hyper.mp3',
+  powerup: 'assets/powerup.mp3',
+  ufo: 'assets/ufo.mp3',
+  laser: 'assets/laser.mp3',
+  powerupinside: 'assets/powerupinside.mp3'
+};
+
+const assetAudioCache = {};
+
+function playAssetAudio(name) {
+  if (!soundEnabled) return;
+  const src = assetAudioSources[name];
+  if (!src) return;
+  if (!assetAudioCache[name]) {
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    assetAudioCache[name] = audio;
+  }
+  const playable = assetAudioCache[name].cloneNode(true);
+  playable.currentTime = 0;
+  const playAttempt = playable.play();
+  if (playAttempt && typeof playAttempt.catch === 'function') {
+    playAttempt.catch(err => {
+      console.warn(`Audio playback blocked for ${name}`, err);
+    });
+  }
+}
+
 // ===== ASTEROID GAME BACKGROUND ANIMATION =====
 (function() {
   const canvas = document.getElementById('asteroidCanvas');
@@ -1783,6 +1815,7 @@ function playSound(soundName) {
         }
         
         playSound('powerup');
+        playAssetAudio('powerup');
         
         // Create collection particles
         for (let j = 0; j < 20; j++) {
@@ -2023,6 +2056,10 @@ function playSound(soundName) {
       const prizes = ['LASER', 'FORCE', 'THRUST'];
       prizeWord = prizes[Math.floor(Math.random() * prizes.length)];
     }
+
+    if (prizeWord) {
+      playAssetAudio('powerupinside');
+    }
     
     return {
       x: x || Math.random() * canvas.width,
@@ -2113,6 +2150,7 @@ function playSound(soundName) {
       aggressionLevel: Math.random() // 0-1, higher = more aggressive
     });
     playSound('ufo');
+    playAssetAudio('ufo');
     console.log('UFO spawned!');
   }
   
@@ -2593,6 +2631,7 @@ function playSound(soundName) {
   }
   
   function createBombExplosion(x, y) {
+    playAssetAudio('bomb');
     // Create expanding shockwave rings
     const shockwaveCount = 3;
     for (let ring = 0; ring < shockwaveCount; ring++) {
@@ -2737,6 +2776,7 @@ function playSound(soundName) {
     createParticles(ship.x, ship.y, 12);
     createHeatSeekerMissile(target);
     playSound('laser');
+    playAssetAudio('seek');
     console.log(`🎯 HEAT SEEKER LAUNCHED at ${target.playerId || 'target'}!`);
     return true;
   }
@@ -2958,6 +2998,7 @@ function playSound(soundName) {
           }
           lastLaserShot = now;
           playSound('laser');
+          playAssetAudio('laser');
         }
         if (!firePressed) {
           ship.lastFireState = false;
@@ -3101,6 +3142,7 @@ function playSound(soundName) {
         createParticles(ship.x, ship.y, 15);
         lastHyperspaceTime = now;
         playSound('hyperspace');
+        playAssetAudio('hyper');
         console.log('Manual hyperspace jump!');
         ship.lastHyperspaceState = true;
       }
@@ -3124,7 +3166,8 @@ function playSound(soundName) {
               owner: currentPlayerId,
               life: Infinity, // Stays until hit
               pulsePhase: 0,
-              createdAt: Date.now() // Track when bomb was dropped
+              createdAt: Date.now(), // Track when bomb was dropped
+              countdownWarningPlayed: false
             };
             bombs.push(bomb);
             bombCount++;
@@ -3270,6 +3313,7 @@ function playSound(soundName) {
             createParticles(ship.x, ship.y, 15);
             lastHyperspaceTime = now;
             playSound('hyperspace');
+            playAssetAudio('hyper');
             console.log('Hyperspace jump!');
           }
         }
@@ -4272,6 +4316,15 @@ function playSound(soundName) {
       if (bomb.createdAt) {
         const elapsed = Date.now() - bomb.createdAt;
         const remaining = Math.max(0, 10 - Math.floor(elapsed / 1000));
+
+        if (typeof bomb.countdownWarningPlayed !== 'boolean') {
+          bomb.countdownWarningPlayed = false;
+        }
+
+        if (remaining === 2 && !bomb.countdownWarningPlayed) {
+          playAssetAudio('countdown');
+          bomb.countdownWarningPlayed = true;
+        }
         
         // Draw countdown with outline for visibility
         ctx.font = 'bold 20px system-ui';
@@ -4737,7 +4790,12 @@ function playSound(soundName) {
   window.getLastSuperBonusTime = () => lastSuperBonusTime;
   window.getBombCount = () => bombCount;
   window.setBombCount = (count) => { bombCount = count; };
-  window.addBomb = (bomb) => { bombs.push(bomb); };
+  window.addBomb = (bomb) => {
+    if (bomb && typeof bomb.countdownWarningPlayed !== 'boolean') {
+      bomb.countdownWarningPlayed = false;
+    }
+    bombs.push(bomb);
+  };
   window.clearBombs = () => { bombs.length = 0; };
   window.removeBomb = (index) => { bombs.splice(index, 1); };
   window.syncSharedItems = (sharedState = {}) => {
