@@ -1,8 +1,7 @@
 # Asterocks - Multiplayer Asteroid Game
 
-![Asterocks Banner](banner.png)
+[![Play Battle Royale Now](click.png)](https://xak1234.github.io/asterocks?mode=anyplayer)
 
-[![Play Now](https://img.shields.io/badge/🎮_Play_Now-Live_Game-brightgreen?style=for-the-badge)](https://xak1234.github.io/asterocks)
 [![Deploy Status](https://img.shields.io/badge/Backend-Render-blue?style=flat-square)](https://asterocks.onrender.com)
 
 A fast-paced multiplayer asteroid game with solo, co-op, versus, and **battle royale** game modes. Compete against AI and other players in real-time action-packed gameplay.

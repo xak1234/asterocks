@@ -5793,6 +5793,18 @@ function playAssetAudio(name) {
     ws.onopen = () => {
       console.log('WebSocket connected to:', wsUrl);
       lobbyStatus.textContent = 'Connected to multiplayer server';
+      
+      // Check for URL parameter to auto-start mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const modeParam = urlParams.get('mode');
+      if (modeParam === 'anyplayer' || modeParam === 'royale' || modeParam === 'battleroyal') {
+        console.log('Auto-starting Battle Royale from URL parameter');
+        setTimeout(() => {
+          if (anyPlayerBtn && !anyPlayerBtn.disabled) {
+            anyPlayerBtn.click();
+          }
+        }, 500);
+      }
     };
     
     ws.onmessage = (event) => {
