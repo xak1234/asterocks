@@ -6802,15 +6802,19 @@ function playAssetAudio(name) {
       const leadingPlayerId = window.getLeadingPlayerId ? window.getLeadingPlayerId() : null;
       Object.entries(allPlayers).forEach(([playerId, player]) => {
         const color = getPlayerColor ? getPlayerColor(playerId) : { primary: 'rgba(255, 107, 107, 0.7)' };
-        const shortId = playerId.substring(0, 6);
+        // Sanitize playerId to prevent XSS
+        const shortId = String(playerId).substring(0, 6).replace(/[<>"'&]/g, '');
         const isLeading = playerId === leadingPlayerId && leadingPlayerId !== myPlayerId;
         const crownIcon = isLeading ? ' 👑' : '';
+        // Ensure numeric values are safe
+        const kills = Math.max(0, parseInt(player.kills) || 0);
+        const deaths = Math.max(0, parseInt(player.deaths) || 0);
         html += `
           <div class="player-item" style="border-left-color: ${color.primary};">
             <div class="player-icon" style="background: ${color.primary};"></div>
             <div class="player-info">
               <div class="player-name">${shortId}${crownIcon}</div>
-              <div class="player-score">Kills: ${player.kills || 0} | Deaths: ${player.deaths || 0}</div>
+              <div class="player-score">Kills: ${kills} | Deaths: ${deaths}</div>
             </div>
           </div>
         `;

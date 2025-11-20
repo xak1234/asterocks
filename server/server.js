@@ -126,9 +126,17 @@ wss.on('connection', (ws) => {
   const existingPlayers = Object.keys(players);
   const isFirstPlayer = existingPlayers.length === 0;
   
+  // WebSocket rate limiting per connection
+  const wsRateLimit = {
+    messageCount: 0,
+    lastReset: Date.now(),
+    maxPerSecond: 100 // Max 100 messages per second per connection
+  };
+  
   players[playerId] = {
     ws,
     playerId,
+    wsRateLimit,
     state: {
       x: 0,
       y: 0,
@@ -163,6 +171,23 @@ wss.on('connection', (ws) => {
   
   ws.on('message', (message) => {
     try {
+      // WebSocket rate limiting check
+      const player = players[playerId];
+      if (player && player.wsRateLimit) {
+        const now = Date.now();
+        if (now - player.wsRateLimit.lastReset > 1000) {
+          // Reset counter every second
+          player.wsRateLimit.messageCount = 0;
+          player.wsRateLimit.lastReset = now;
+        }
+        
+        player.wsRateLimit.messageCount++;
+        if (player.wsRateLimit.messageCount > player.wsRateLimit.maxPerSecond) {
+          console.warn(`Rate limit exceeded for player ${playerId}`);
+          return;
+        }
+      }
+      
       // Validate message is string and reasonable size (1MB limit)
       if (typeof message !== 'string' && !Buffer.isBuffer(message)) {
         console.error('Invalid message type received');
@@ -199,8 +224,22 @@ wss.on('connection', (ws) => {
           
         case 'state_update':
           // Update player state
-          if (players[playerId]) {
-            players[playerId].state = data.state;
+          if (players[playerId] && data.state && typeof data.state === 'object') {
+            // Validate and sanitize state values
+            const sanitizedState = {
+              x: validateNumber(data.state.x, -10000, 10000) || 0,
+              y: validateNumber(data.state.y, -10000, 10000) || 0,
+              angle: validateNumber(data.state.angle, -Math.PI * 2, Math.PI * 2) || 0,
+              velocity: {
+                x: validateNumber(data.state.velocity?.x, -1000, 1000) || 0,
+                y: validateNumber(data.state.velocity?.y, -1000, 1000) || 0
+              },
+              exploded: Boolean(data.state.exploded),
+              score: validateNumber(data.state.score, 0, 999999999) || 0,
+              lives: validateNumber(data.state.lives, 0, 100) || 0
+            };
+            
+            players[playerId].state = sanitizedState;
             
             // In anyplayer mode, broadcast to all in lobby
             if (players[playerId].mode === 'anyplayer') {
@@ -209,7 +248,7 @@ wss.on('connection', (ws) => {
                   players[pId].ws.send(JSON.stringify({
                     type: 'player_state',
                     playerId,
-                    state: data.state
+                    state: sanitizedState
                   }));
                 }
               });
@@ -218,7 +257,7 @@ wss.on('connection', (ws) => {
               broadcastToOthers(playerId, {
                 type: 'player_state',
                 playerId,
-                state: data.state
+                state: sanitizedState
               });
             }
           }

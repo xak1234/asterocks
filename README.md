@@ -33,23 +33,25 @@ Server runs on `http://localhost:3000`
 
 ```
 asterocks/
-├── public/                 # Static assets (HTML, images)
-│   ├── index.html         # Main game page
-│   └── assets/            # Images (Atlas.png, back.png)
-├── server/                # Backend code
-│   ├── server.js          # Express + WebSocket server
-│   └── server.py          # Alternative Python server
-├── src/                   # Frontend components
-│   └── Button.tsx         # React button component
-├── docs/                  # Documentation
-│   ├── README.md          # Original project README
-│   ├── MULTIPLAYER_README.md
-│   └── SECURITY.md        # Security policy & guidelines
-├── config/                # Configuration files
-├── .env.example           # Environment variables template
-├── .gitignore             # Git ignore rules
-├── package.json           # Dependencies & scripts
-└── package-lock.json      # Locked dependency versions
+├── .github/workflows/     # GitHub Actions
+│   └── deploy.yml        # Auto-deploy to GitHub Pages
+├── public/               # Static assets (deployed to GitHub Pages)
+│   ├── index.html        # Main game file
+│   ├── config.js         # Backend server configuration
+│   └── assets/           # Images (Atlas.png, back.png)
+├── server/               # Backend (deployed to Render)
+│   └── server.js         # Express + WebSocket server
+├── docs/                 # Documentation
+│   ├── DEPLOYMENT.md     # Full deployment guide
+│   ├── GITHUB_PAGES_DEPLOYMENT.md  # GitHub Pages setup
+│   ├── DEPLOYMENT_ARCHITECTURE.md   # System architecture
+│   ├── README.md         # Original project README
+│   └── SECURITY.md       # Security policy
+├── .env.example          # Environment variables template
+├── package.json          # Dependencies & scripts
+├── setup-deployment.bat  # Windows deployment helper
+├── setup-deployment.sh   # Unix deployment helper
+└── README.md             # This file
 ```
 
 ## 🎮 Features
@@ -84,9 +86,11 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for detailed security documentation.
 
 ## 📖 Documentation
 
-- **[README.md](docs/README.md)** - Full project overview and features
-- **[MULTIPLAYER_README.md](docs/MULTIPLAYER_README.md)** - Multiplayer game modes
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Complete deployment guide
+- **[GITHUB_PAGES_DEPLOYMENT.md](docs/GITHUB_PAGES_DEPLOYMENT.md)** - GitHub Pages setup
+- **[DEPLOYMENT_ARCHITECTURE.md](docs/DEPLOYMENT_ARCHITECTURE.md)** - System architecture
 - **[SECURITY.md](docs/SECURITY.md)** - Security policy and best practices
+- **[FINAL_DEPLOYMENT_STEPS.md](FINAL_DEPLOYMENT_STEPS.md)** - Quick deployment checklist
 
 ## 🛠️ Development
 
