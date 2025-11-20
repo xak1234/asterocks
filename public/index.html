@@ -1001,6 +1001,9 @@
       collection
     };
   </script>
+  
+  <!-- Configuration -->
+  <script src="config.js"></script>
 </head>
 <body>
   <canvas id="asteroidCanvas"></canvas>
@@ -5753,14 +5756,41 @@ function playAssetAudio(name) {
   // Connect to WebSocket server
   function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-      ? 'localhost:3000' 
-      : window.location.host;
     
-    ws = new WebSocket(`${protocol}//${host}`);
+    // Determine the backend server host
+    let host;
+    const config = window.ASTEROCKS_CONFIG || {};
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (config.BACKEND_SERVER && !isLocal) {
+      // Use configured backend server (for GitHub Pages deployment)
+      host = config.BACKEND_SERVER;
+      if (config.DEBUG) {
+        console.log('Using configured backend server:', host);
+      }
+    } else if (isLocal) {
+      // Local development
+      host = 'localhost:3000';
+      if (config.DEBUG) {
+        console.log('Using local development server:', host);
+      }
+    } else {
+      // Fallback to same host
+      host = window.location.host;
+      if (config.DEBUG) {
+        console.log('Using same-host server:', host);
+      }
+    }
+    
+    const wsUrl = `${protocol}//${host}`;
+    if (config.DEBUG) {
+      console.log('Connecting to WebSocket:', wsUrl);
+    }
+    
+    ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected to:', wsUrl);
       lobbyStatus.textContent = 'Connected to multiplayer server';
     };
     

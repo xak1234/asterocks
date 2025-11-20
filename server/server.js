@@ -39,12 +39,13 @@ app.use((req, res, next) => {
 });
 
 // CORS with origin validation
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000'];
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io'];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || ALLOWED_ORIGINS.some(allowed => origin.includes(allowed))) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('CORS not allowed'));
     }
   },

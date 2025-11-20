@@ -1,8 +1,11 @@
 # Asterocks - Multiplayer Asteroid Game
 
-A fast-paced multiplayer asteroid game with solo, co-op, versus, and battle royale game modes. Compete against AI and other players in real-time action-packed gameplay.
+A fast-paced multiplayer asteroid game with solo, co-op, versus, and **battle royale** game modes. Compete against AI and other players in real-time action-packed gameplay.
 
-## 🚀 Quick Start
+> **🎮 Want to play on GitHub Pages?** This game is **ready to deploy** with free hosting!  
+> See [Quick Deploy Guide](#-deployment) below or jump to [docs/QUICK_DEPLOY.md](docs/QUICK_DEPLOY.md)
+
+## 🚀 Quick Start (Local)
 
 ```bash
 npm install
@@ -10,6 +13,16 @@ npm start
 ```
 
 Server runs on `http://localhost:3000`
+
+## 🌐 Play Online (Deploy to GitHub Pages)
+
+**Free hosting in 3 steps:**
+
+1. **Deploy backend** to [Render.com](https://render.com) (free tier)
+2. **Edit** `public/config.js` with your backend URL
+3. **Enable** GitHub Pages in repo Settings
+
+📖 **Detailed guide**: [docs/QUICK_DEPLOY.md](docs/QUICK_DEPLOY.md)
 
 ## 📁 Project Structure
 
@@ -93,12 +106,37 @@ REFRESH_INTERVAL_HOURS=6
 
 ## 🚀 Deployment
 
-The application is configured for deployment on platforms like Render:
+### GitHub Pages + Free Backend Server
 
-1. Set environment variables in deployment platform
-2. Point to `server/server.js` as main entry point
-3. Keep `public/` directory for static files
-4. WebSocket support enabled automatically
+Deploy the battle royale game with frontend on GitHub Pages and backend on a free hosting service:
+
+**Quick Deploy:**
+1. **Deploy Backend** to [Render](https://render.com) or [Railway](https://railway.app) (free tier)
+   - Create new Web Service from this repository
+   - Set environment: `NODE_ENV=production`, `ALLOWED_ORIGINS=yourusername.github.io`
+   - Note your backend URL (e.g., `asterocks-server.onrender.com`)
+
+2. **Configure Frontend** - Edit `public/config.js`:
+   ```javascript
+   BACKEND_SERVER: 'asterocks-server.onrender.com' // Your backend URL
+   ```
+
+3. **Enable GitHub Pages** in repository Settings → Pages:
+   - Source: GitHub Actions (auto-deploys on push)
+   
+4. **Play!** Visit `https://yourusername.github.io/asterocks`
+
+📋 **Detailed Guide**: See [docs/GITHUB_PAGES_DEPLOYMENT.md](docs/GITHUB_PAGES_DEPLOYMENT.md)
+
+### Alternative Deployment Options
+
+The application also supports deployment on:
+- **Render** - Full-stack deployment
+- **Heroku** - Traditional platform
+- **Docker** - Containerized deployment
+- **VPS** - Self-hosted
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for detailed instructions
 
 ## 📊 API Endpoints
 
