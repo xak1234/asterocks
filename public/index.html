@@ -5740,6 +5740,10 @@ function playAssetAudio(name) {
   const coopPlayBtn = document.getElementById('coopPlayBtn');
   const anyPlayerBtn = document.getElementById('anyPlayerBtn');
   const anyPlayerCountBadge = document.getElementById('anyPlayerCount');
+  const urlParams = new URLSearchParams(window.location.search);
+  const autoModeParam = (urlParams.get('mode') || '').toLowerCase();
+  const shouldAutoStartFromUrl = ['anyplayer', 'royale', 'battleroyal'].includes(autoModeParam);
+  let queuedAutoStartBattleRoyale = shouldAutoStartFromUrl;
   
   // Function to update Battle Royale player count
   function updateAnyPlayerCount(count) {
@@ -5793,19 +5797,18 @@ function playAssetAudio(name) {
     ws.onopen = () => {
       console.log('WebSocket connected to:', wsUrl);
       lobbyStatus.textContent = 'Connected to multiplayer server';
-      
-      // Check for URL parameter to auto-start mode
-      const urlParams = new URLSearchParams(window.location.search);
-      const modeParam = urlParams.get('mode');
-      if (modeParam === 'anyplayer' || modeParam === 'royale' || modeParam === 'battleroyal') {
-        console.log('Auto-starting Battle Royale from URL parameter');
-        setTimeout(() => {
-          if (anyPlayerBtn && !anyPlayerBtn.disabled) {
-            anyPlayerBtn.click();
-          }
-        }, 500);
+      if (queuedAutoStartBattleRoyale) {
+        tryAutoStartBattleRoyale();
       }
     };
+      function tryAutoStartBattleRoyale() {
+        if (!queuedAutoStartBattleRoyale) return;
+        if (anyPlayerBtn && !anyPlayerBtn.disabled && ws && ws.readyState === WebSocket.OPEN) {
+          console.log('Auto-starting Battle Royale via queued request');
+          queuedAutoStartBattleRoyale = false;
+          anyPlayerBtn.click();
+        }
+      }
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -6778,6 +6781,7 @@ function playAssetAudio(name) {
       const displayText = isWinning ? `👑 ${player.kills || 0}` : `${player.kills || 0}`;
       ctx.fillText(displayText, player.x, player.y - 25);
     });
+    tryAutoStartBattleRoyale();
   }
   
   // Update player list UI
