@@ -1,5 +1,7 @@
 # Asterocks - Multiplayer Asteroid Game
 
+![Asterocks Banner](banner.png)
+
 [![Play Now](https://img.shields.io/badge/🎮_Play_Now-Live_Game-brightgreen?style=for-the-badge)](https://xak1234.github.io/asterocks)
 [![Deploy Status](https://img.shields.io/badge/Backend-Render-blue?style=flat-square)](https://asterocks.onrender.com)
 
