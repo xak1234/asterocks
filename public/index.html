@@ -2609,10 +2609,20 @@ function playAssetAudio(name) {
     return points;
   }
   
-  // Initialize asteroids (4 small ones)
+  // Initialize asteroids (4 small ones) - spawn them closer and faster initially
   for (let i = 0; i < 4; i++) {
-    asteroids.push(createAsteroid(null, null, Math.random() * 20 + 15)); // Small: 15-35px
+    const asteroid = createAsteroid(null, null, Math.random() * 20 + 15); // Small: 15-35px
+    // Make initial asteroids faster so game feels more active at start
+    asteroid.velocity = {
+      x: (Math.random() - 0.5) * 4,  // Double the speed
+      y: (Math.random() - 0.5) * 4
+    };
+    asteroids.push(asteroid);
   }
+  
+  // Spawn a huge asteroid right away so player sees action immediately
+  console.log('Spawning initial huge asteroid...');
+  spawnHugeAsteroid();
   
   // Create particle effect
   function createParticles(x, y, count) {
@@ -4577,26 +4587,34 @@ function playAssetAudio(name) {
   }
   
   // Main game loop
+  let lastFrameTime = Date.now();
+  let frameCount = 0;
+  
   function gameLoop() {
-    // Clear canvas - use clearRect for better performance
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    if (!gamePaused) {
-      // Check game mode - adjust spawning based on mode
-      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
-      const isVsMode = gameMode === 'vs';
-      const isAnyPlayerMode = gameMode === 'anyplayer';
-      const isMultiplayerGame = typeof window.isMultiplayerActive === 'function' ? window.isMultiplayerActive() : false;
-      const isWorldAuthority = (() => {
-        if (!isMultiplayerGame) return true;
-        if (isAnyPlayerMode) {
-          return typeof window.isAnyPlayerHostActive === 'function' ? window.isAnyPlayerHostActive() : false;
-        }
-        if (gameMode === 'coop' || gameMode === 'vs') {
-          return typeof window.isMultiplayerHost === 'function' ? window.isMultiplayerHost() : false;
-        }
-        return true;
-      })();
+    try {
+      // Clear canvas - use clearRect for better performance
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Performance monitoring
+      const currentTime = Date.now();
+      frameCount++;
+      
+      if (!gamePaused) {
+        // Check game mode - adjust spawning based on mode
+        const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+        const isVsMode = gameMode === 'vs';
+        const isAnyPlayerMode = gameMode === 'anyplayer';
+        const isMultiplayerGame = typeof window.isMultiplayerActive === 'function' ? window.isMultiplayerActive() : false;
+        const isWorldAuthority = (() => {
+          if (!isMultiplayerGame) return true;
+          if (isAnyPlayerMode) {
+            return typeof window.isAnyPlayerHostActive === 'function' ? window.isAnyPlayerHostActive() : false;
+          }
+          if (gameMode === 'coop' || gameMode === 'vs') {
+            return typeof window.isMultiplayerHost === 'function' ? window.isMultiplayerHost() : false;
+          }
+          return true;
+        })();
       
       if (!isVsMode) {
         const now = Date.now();
@@ -4649,18 +4667,32 @@ function playAssetAudio(name) {
         }
       }
       
-      // Update
-      updateShipAI();
-      updateAsteroids();
-      updateShootingStars();
-      updateAliens();
-      updateUfos();
-      updateUfoBullets();
-      updateBullets();
-      updateBombs();
-      updateHeatSeekers();
-      updateSuperBonuses();
-      updateParticles();
+      // Update - add try-catch to prevent crashes
+      try {
+        updateShipAI();
+      } catch (e) {
+        console.warn('Error in updateShipAI:', e.message);
+      }
+      
+      try {
+        updateAsteroids();
+        updateShootingStars();
+        updateAliens();
+        updateUfos();
+        updateUfoBullets();
+        updateBullets();
+        updateBombs();
+        updateHeatSeekers();
+        updateSuperBonuses();
+      } catch (e) {
+        console.warn('Error in entity updates:', e.message);
+      }
+      
+      try {
+        updateParticles();
+      } catch (e) {
+        console.warn('Error in updateParticles:', e.message);
+      }
       
       // Check for extra life milestone
       if (score >= nextExtraLifeAt) {
@@ -4671,43 +4703,69 @@ function playAssetAudio(name) {
       }
     }
     
-    // Draw (always draw even when paused)
-    drawStars();
-    drawAsteroids();
-    drawShootingStars();
-    drawAliens();
-    drawUfos();
-    drawUfoBullets();
-    drawSuperBonuses();
-    drawBombs();
-    drawHeatSeekers();
-    drawShip();
-    drawBullets();
-    drawParticles();
-    drawHUD();
+    // Draw (always draw even when paused) - add error handling
+    try {
+      drawStars();
+      drawAsteroids();
+      drawShootingStars();
+      drawAliens();
+      drawUfos();
+      drawUfoBullets();
+      drawSuperBonuses();
+      drawBombs();
+      drawHeatSeekers();
+      drawShip();
+      drawBullets();
+      drawParticles();
+      drawHUD();
+    } catch (e) {
+      console.warn('Error in render functions:', e.message);
+    }
     
     // Draw multiplayer elements (other players)
-    const isMultiplayerActive = window.isMultiplayerActive && window.isMultiplayerActive();
-    if (isMultiplayerActive) {
-      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
-      if (gameMode === 'anyplayer') {
-        // Draw all players in battle royale
-        if (window.drawAllPlayers) {
-          window.drawAllPlayers();
-        }
-      } else {
-        // Draw single other player in 2-player modes
-        if (window.drawOtherPlayerShip) {
-          window.drawOtherPlayerShip();
+    try {
+      const isMultiplayerActive = window.isMultiplayerActive && window.isMultiplayerActive();
+      if (isMultiplayerActive) {
+        const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
+        if (gameMode === 'anyplayer') {
+          // Draw all players in battle royale
+          if (window.drawAllPlayers) {
+            window.drawAllPlayers();
+          }
+        } else {
+          // Draw single other player in 2-player modes
+          if (window.drawOtherPlayerShip) {
+            window.drawOtherPlayerShip();
+          }
         }
       }
+    } catch (e) {
+      console.warn('Error in multiplayer render:', e.message);
     }
     
     requestAnimationFrame(gameLoop);
+    frameCounter++; // Increment FPS counter
+    } catch (e) {
+      console.error('Critical error in gameLoop:', e);
+      requestAnimationFrame(gameLoop); // Keep the loop running even if there's an error
+    }
   }
   
   // Start the game
+  let frameCounter = 0;
+  let lastFpsUpdate = Date.now();
+  
   gameLoop();
+  
+  // FPS monitoring
+  setInterval(() => {
+    const now = Date.now();
+    const elapsed = now - lastFpsUpdate;
+    const fps = (frameCounter * 1000 / elapsed).toFixed(1);
+    console.log(`[FPS: ${fps}] Game is running smoothly`);
+    frameCounter = 0;
+    lastFpsUpdate = now;
+  }, 1000);
   
   // Expose pause state to global scope
   window.getGamePaused = () => gamePaused;
@@ -5435,6 +5493,7 @@ function playAssetAudio(name) {
 // ===== MULTIPLAYER SYSTEM (CO-OP, VS, ANY PLAYER) =====
 (function() {
   let ws = null;
+  let isWebSocketConnected = false;
   let myPlayerId = null;
   let otherPlayerId = null;
   let isMultiplayer = false;
@@ -5792,15 +5851,30 @@ function playAssetAudio(name) {
       console.log('Connecting to WebSocket:', wsUrl);
     }
     
+    // Try to connect with a timeout
+    let connectionTimeout;
     ws = new WebSocket(wsUrl);
     
+    connectionTimeout = setTimeout(() => {
+      if (ws && ws.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket connection timeout - falling back to offline mode');
+        ws.close();
+        // Mark connection as failed so UI can adapt
+        isWebSocketConnected = false;
+        lobbyStatus.textContent = 'Playing offline - Solo and local-only modes available';
+      }
+    }, 3000); // 3 second timeout
+    
     ws.onopen = () => {
+      clearTimeout(connectionTimeout);
+      isWebSocketConnected = true;
       console.log('WebSocket connected to:', wsUrl);
       lobbyStatus.textContent = 'Connected to multiplayer server';
       if (queuedAutoStartBattleRoyale) {
         tryAutoStartBattleRoyale();
       }
     };
+    
       function tryAutoStartBattleRoyale() {
         if (!queuedAutoStartBattleRoyale) return;
         if (anyPlayerBtn && !anyPlayerBtn.disabled && ws && ws.readyState === WebSocket.OPEN) {
@@ -5818,12 +5892,15 @@ function playAssetAudio(name) {
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
       console.error('WebSocket error details:', error.message || error);
-      lobbyStatus.textContent = 'Connection error - Playing solo';
+      isWebSocketConnected = false;
+      lobbyStatus.textContent = 'Connection error - Playing offline mode';
+      anyPlayerBtn.disabled = false; // Allow offline battle royale
     };
     
     ws.onclose = () => {
       console.log('WebSocket disconnected');
       console.log(`WebSocket close code: ${ws.code}, reason: ${ws.reason}`);
+      isWebSocketConnected = false;
       stopFirebaseSync('socket-closed');
       if (isMultiplayer) {
         // Show notification that other player left

@@ -15,8 +15,8 @@ window.ASTEROCKS_CONFIG = {
   // For local development:
   // Set to null or comment out to use localhost:3000
   
-  BACKEND_SERVER: 'asterocks.onrender.com', // Your deployed Render server
+  BACKEND_SERVER: null, // Set to null to use localhost:3000 for local development
   
   // Debug mode - set to true to see connection details in console
-  DEBUG: false
+  DEBUG: true
 };
