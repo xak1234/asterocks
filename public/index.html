@@ -5857,13 +5857,17 @@ function playAssetAudio(name) {
     
     connectionTimeout = setTimeout(() => {
       if (ws && ws.readyState !== WebSocket.OPEN) {
-        console.warn('WebSocket connection timeout - falling back to offline mode');
+        console.warn('WebSocket connection timeout after 5 seconds - falling back to offline mode');
+        console.warn('Attempting connection to:', wsUrl);
         ws.close();
         // Mark connection as failed so UI can adapt
         isWebSocketConnected = false;
         lobbyStatus.textContent = 'Playing offline - Solo and local-only modes available';
+        if (config.DEBUG) {
+          console.log('Check server logs at: https://dashboard.render.com/');
+        }
       }
-    }, 3000); // 3 second timeout
+    }, 5000); // 5 second timeout
     
     ws.onopen = () => {
       clearTimeout(connectionTimeout);

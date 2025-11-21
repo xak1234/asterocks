@@ -8,7 +8,21 @@ const http = require('http');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ 
+  server,
+  verifyClient: (info, callback) => {
+    const origin = info.req.headers.origin;
+    const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io'];
+    
+    // Allow connections from allowed origins or if no origin is provided
+    if (!origin || ALLOWED_ORIGINS.some(allowed => origin.includes(allowed))) {
+      callback(true);
+    } else {
+      console.warn(`WebSocket connection rejected from origin: ${origin}`);
+      callback(false, 403, 'Forbidden');
+    }
+  }
+});
 
 // ===== SECURITY UTILITIES =====
 // Sanitize string inputs to prevent injection attacks
