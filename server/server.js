@@ -12,7 +12,7 @@ const wss = new WebSocket.Server({
   server,
   verifyClient: (info, callback) => {
     const origin = info.req.headers.origin;
-    const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io'];
+    const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io', 'onrender.com'];
     
     // Allow connections from allowed origins or if no origin is provided
     if (!origin || ALLOWED_ORIGINS.some(allowed => origin.includes(allowed))) {
@@ -53,7 +53,7 @@ app.use((req, res, next) => {
 });
 
 // CORS with origin validation
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io'];
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['localhost:3000', 'localhost:5173', '127.0.0.1:3000', 'github.io', 'onrender.com'];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || ALLOWED_ORIGINS.some(allowed => origin.includes(allowed))) {

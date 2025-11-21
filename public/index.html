@@ -5819,36 +5819,50 @@ function playAssetAudio(name) {
   
   // Connect to WebSocket server
   function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    // Determine the backend server host
-    let host;
     const config = window.ASTEROCKS_CONFIG || {};
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const isRenderApp = window.location.hostname.includes('onrender.com');
     
-    if (config.BACKEND_SERVER && !isLocal) {
-      // Use configured backend server (for GitHub Pages deployment)
-      host = config.BACKEND_SERVER;
-      if (config.DEBUG) {
-        console.log('Using configured backend server:', host);
-      }
-    } else if (isLocal) {
+    // Determine the backend server host and protocol
+    let host;
+    let protocol;
+    
+    if (isLocal) {
       // Local development
       host = 'localhost:3000';
+      protocol = 'ws:';
       if (config.DEBUG) {
         console.log('Using local development server:', host);
       }
-    } else {
-      // Fallback to same host
-      host = window.location.host;
+    } else if (isGitHubPages && config.BACKEND_SERVER) {
+      // GitHub Pages - use configured backend server
+      host = config.BACKEND_SERVER;
+      protocol = 'wss:';
       if (config.DEBUG) {
-        console.log('Using same-host server:', host);
+        console.log('GitHub Pages: Using configured backend server:', host);
+      }
+    } else if (isRenderApp || window.location.protocol === 'https:') {
+      // Render deployment or HTTPS - use same host with WSS
+      host = window.location.host;
+      protocol = 'wss:';
+      if (config.DEBUG) {
+        console.log('Render/HTTPS: Using same-host server with WSS:', host);
+      }
+    } else {
+      // Fallback to same host with appropriate protocol
+      host = window.location.host;
+      protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      if (config.DEBUG) {
+        console.log('Fallback: Using same-host server:', host, 'with protocol:', protocol);
       }
     }
     
     const wsUrl = `${protocol}//${host}`;
     if (config.DEBUG) {
       console.log('Connecting to WebSocket:', wsUrl);
+      console.log('Current location:', window.location.href);
+      console.log('Connection mode:', isLocal ? 'local' : isGitHubPages ? 'github-pages' : isRenderApp ? 'render' : 'other');
     }
     
     // Try to connect with a timeout
