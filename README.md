@@ -159,8 +159,7 @@ See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for detailed instructions
 
 - **Frontend**: Vanilla JavaScript, HTML5 Canvas, WebSocket
 - **Backend**: Node.js, Express.js, WebSocket (ws library)
-- **Data Sources**: COBS, TheSkyLive API
-- **Web Scraping**: Cheerio
+
 
 ## 📜 License
 
