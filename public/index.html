@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Asterocks — Multiplayer Asteroid Game</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
@@ -106,6 +109,7 @@
       padding: 15px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
       border: 2px solid rgba(126, 200, 255, 0.5);
+      touch-action: none;
     }
 
     #controlPanel.active {
@@ -147,11 +151,19 @@
       transition: all 0.15s ease;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
     }
 
     .direction-btn:active {
       background: rgba(126, 200, 255, 0.5);
       transform: scale(0.95);
+    }
+    
+    .direction-btn.pressed {
+      background: rgba(126, 200, 255, 0.6);
+      transform: scale(0.9);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
     }
 
     .direction-btn.up { grid-column: 2; grid-row: 1; }
@@ -177,9 +189,11 @@
       transition: all 0.15s ease;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
     }
 
-    .fire-btn:active {
+    .fire-btn:active, .fire-btn.pressed {
       background: linear-gradient(145deg, #ff4444, #ff2222);
       transform: scale(0.95);
       box-shadow: 0 1px 3px rgba(255, 107, 107, 0.7);
@@ -203,9 +217,11 @@
       transition: all 0.15s ease;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
     }
 
-    .hyperspace-btn:active {
+    .hyperspace-btn:active, .hyperspace-btn.pressed {
       background: linear-gradient(145deg, #5ea8df, #4e98cf);
       transform: scale(0.95);
       box-shadow: 0 1px 3px rgba(126, 200, 255, 0.7);
@@ -274,66 +290,132 @@
         grid-template-columns: 1fr;
       }
       body {
-        padding: 16px;
+        padding: 10px;
       }
       
-      /* Optimize joystick for mobile */
+      /* Optimize joystick for mobile - position 1 (lower right) - 50% smaller */
       #controlPanel {
-        bottom: 20px;
-        right: 20px;
-        padding: 20px;
-        border-radius: 16px;
+        bottom: 8px;
+        right: 8px;
+        left: auto;
+        transform: none;
+        padding: 4px;
+        border-radius: 8px;
       }
       
       .joystick-container {
-        grid-template-columns: repeat(3, 60px);
-        grid-template-rows: repeat(3, 60px);
-        gap: 8px;
+        grid-template-columns: repeat(3, 25px);
+        grid-template-rows: repeat(3, 25px);
+        gap: 3px;
       }
       
       .direction-btn {
-        font-size: 24px;
-        border-radius: 8px;
-        border: 3px solid rgba(126, 200, 255, 0.6);
+        font-size: 14px;
+        border-radius: 4px;
+        border: 1px solid rgba(126, 200, 255, 0.6);
+        min-height: 25px;
+        min-width: 25px;
       }
       
       .fire-btn {
-        width: 90px;
-        height: 90px;
-        font-size: 16px;
-        border: 4px solid rgba(255, 107, 107, 0.8);
-        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+        width: 35px;
+        height: 35px;
+        font-size: 8px;
+        border: 2px solid rgba(255, 107, 107, 0.8);
+        box-shadow: 0 2px 6px rgba(255, 107, 107, 0.5);
       }
       
       .hyperspace-btn {
-        width: 90px;
-        height: 50px;
-        font-size: 13px;
-        border: 3px solid rgba(126, 200, 255, 0.8);
+        width: 35px;
+        height: 20px;
+        font-size: 6px;
+        border: 1px solid rgba(126, 200, 255, 0.8);
       }
       
       .close-panel-btn {
-        width: 24px;
-        height: 24px;
-        font-size: 14px;
-        top: 8px;
-        right: 8px;
-        border: 2px solid rgba(255, 107, 107, 0.5);
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        top: 1px;
+        right: 1px;
+        border: 1px solid rgba(255, 107, 107, 0.5);
       }
       
       .drag-handle {
-        width: 28px;
-        height: 28px;
-        top: 8px;
-        left: 8px;
-        border: 2px solid rgba(126, 200, 255, 0.5);
-        border-radius: 6px;
+        width: 18px;
+        height: 18px;
+        top: 1px;
+        left: 1px;
+        border: 1px solid rgba(126, 200, 255, 0.5);
+        border-radius: 3px;
       }
       
       .drag-handle::before,
       .drag-handle::after {
-        width: 16px;
-        height: 3px;
+        width: 10px;
+        height: 1px;
+      }
+      
+      /* Hide radar on mobile */
+      #radarContainer {
+        display: none;
+      }
+      
+      /* Control buttons for mobile - 50% smaller */
+      .control-buttons {
+        top: 10px;
+        right: 10px;
+        gap: 4px;
+      }
+      
+      .control-btn {
+        width: 25px;
+        height: 25px;
+        font-size: 12px;
+        border-width: 1px;
+      }
+      
+      /* Lobby adjustments */
+      .lobby-content {
+        padding: 25px 20px;
+        max-width: 90vw;
+      }
+      
+      .lobby-btn {
+        padding: 14px 20px;
+        font-size: 15px;
+        min-height: 50px;
+      }
+      
+      /* Player list for mobile - 60% smaller, positioned on right */
+      #playerList {
+        min-width: 32px;
+        max-width: 64px;
+        max-height: 120px;
+        padding: 4px 5px;
+        top: 10px;
+        right: 8px;
+        left: auto;
+        font-size: 4.2px;
+      }
+      
+      #playerList .player-list-title {
+        font-size: 4.2px;
+        margin-bottom: 3px;
+        padding-bottom: 2px;
+      }
+      
+      #playerList .player-item {
+        padding: 2px 3px;
+        margin-bottom: 2px;
+      }
+      
+      #playerList .player-info {
+        font-size: 3.6px;
+      }
+      
+      #playerList .player-score {
+        font-size: 3.3px;
       }
     }
 
@@ -528,6 +610,9 @@
       transition: all 0.2s ease;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
       user-select: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
 
     .control-btn:hover {
@@ -599,10 +684,168 @@
     }
 
     @media (max-width: 720px) {
+      /* Mobile HUD scaling */
+      body.mobile-view #asteroidCanvas {
+        --hud-scale: 0.5;
+      }
+      
       #keyLegend {
-        font-size: 9px;
-        padding: 8px 10px;
-        width: calc(100% - 40px);
+        font-size: 7px;
+        padding: 6px 8px;
+        width: auto;
+        max-width: 45%;
+        left: 8px;
+        right: auto;
+        transform: none;
+        bottom: 8px;
+        background: rgba(15, 27, 42, 0.95);
+        border: 2px solid rgba(126, 200, 255, 0.5);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        pointer-events: auto;
+      }
+      
+      #keyLegend.minimized {
+        padding: 6px 8px;
+        max-width: 50px;
+        min-height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      #keyLegend.minimized .legend-row {
+        display: none !important;
+      }
+      
+      #keyLegend.minimized::before {
+        content: '📋';
+        font-size: 20px;
+        display: block;
+        line-height: 1;
+      }
+      
+      .legend-row {
+        gap: 6px;
+        flex-wrap: nowrap;
+      }
+      
+      .legend-key {
+        padding: 2px 4px;
+        font-size: 7px;
+        background: rgba(126, 200, 255, 0.15);
+        border-radius: 3px;
+        border: 1px solid rgba(126, 200, 255, 0.3);
+      }
+      
+      .legend-item {
+        gap: 2px;
+        font-size: 7px;
+      }
+      
+      .legend-action {
+        font-size: 6px;
+      }
+    }
+    
+    /* Landscape mobile optimization */
+    @media (max-width: 820px) and (orientation: landscape) {
+      #controlPanel {
+        bottom: 5px;
+        right: 5px;
+        left: auto;
+        transform: none;
+        padding: 3px;
+      }
+      
+      .joystick-container {
+        grid-template-columns: repeat(3, 20px);
+        grid-template-rows: repeat(3, 20px);
+        gap: 2px;
+      }
+      
+      .direction-btn {
+        font-size: 12px;
+        min-height: 20px;
+        min-width: 20px;
+      }
+      
+      .fire-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 7px;
+      }
+      
+      .hyperspace-btn {
+        width: 30px;
+        height: 18px;
+        font-size: 6px;
+      }
+      
+      #radarContainer {
+        display: none;
+      }
+      
+      #keyLegend {
+        font-size: 6px;
+        padding: 4px 6px;
+        bottom: 5px;
+        left: 5px;
+        right: auto;
+        transform: none;
+        width: auto;
+        max-width: 40%;
+        background: rgba(15, 27, 42, 0.95);
+        border: 2px solid rgba(126, 200, 255, 0.5);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        pointer-events: auto;
+      }
+      
+      #keyLegend.minimized {
+        padding: 4px 6px;
+        max-width: 45px;
+        min-height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      #keyLegend.minimized .legend-row {
+        display: none !important;
+      }
+      
+      #keyLegend.minimized::before {
+        content: '📋';
+        font-size: 16px;
+        display: block;
+        line-height: 1;
+      }
+      
+      #keyLegend .legend-row {
+        gap: 4px;
+        flex-wrap: nowrap;
+      }
+      
+      #keyLegend .legend-item {
+        gap: 2px;
+        font-size: 6px;
+      }
+      
+      #keyLegend .legend-key {
+        padding: 1px 3px;
+        font-size: 6px;
+        background: rgba(126, 200, 255, 0.15);
+        border-radius: 2px;
+        border: 1px solid rgba(126, 200, 255, 0.3);
+      }
+      
+      #keyLegend .legend-action {
+        font-size: 5px;
       }
     }
 
@@ -720,6 +963,9 @@
       transition: all 0.2s ease;
       text-transform: uppercase;
       letter-spacing: 1px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
 
     .lobby-btn:hover:not(:disabled) {
@@ -728,6 +974,11 @@
       color: rgba(126, 240, 163, 1);
       transform: scale(1.05);
       box-shadow: 0 4px 12px rgba(126, 200, 255, 0.3);
+    }
+    
+    .lobby-btn:active:not(:disabled) {
+      transform: scale(0.98);
+      box-shadow: 0 2px 6px rgba(126, 200, 255, 0.2);
     }
 
     .lobby-btn:disabled {
@@ -899,6 +1150,12 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       border: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-touch-callout: none;
+      min-height: 50px;
+      min-width: 120px;
     }
 
     .join-request-accept {
@@ -923,6 +1180,10 @@
       background: linear-gradient(145deg, #ffb0b0, #ff8080);
       transform: scale(1.05);
       box-shadow: 0 6px 16px rgba(255, 107, 107, 0.6);
+    }
+    
+    .join-request-btn:active {
+      transform: scale(0.95) !important;
     }
 
     @keyframes screenSaverPulse {
@@ -1008,8 +1269,8 @@
 <body>
   <canvas id="asteroidCanvas"></canvas>
   
-  <!-- Joystick Control Panel (DISABLED) -->
-  <div id="controlPanel" style="display: none !important;">
+  <!-- Joystick Control Panel -->
+  <div id="controlPanel">
     <div class="drag-handle" id="dragHandle"></div>
     <div class="close-panel-btn" id="closePanelBtn">×</div>
     <div class="joystick-container">
@@ -1139,10 +1400,30 @@
   }
   
   // Auto-enable on mobile devices
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-    controlPanel.classList.add('active');
-    isManualControl = true;
-    console.log('Mobile controls enabled');
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isSmallScreen = window.innerWidth <= 820;
+  
+  if (isMobile || isSmallScreen) {
+    // Delay to ensure DOM is ready
+    setTimeout(() => {
+      controlPanel.classList.add('active');
+      isManualControl = true;
+      console.log('Mobile/touch controls enabled');
+    }, 100);
+  }
+  
+  // Key Legend minimize/expand toggle for mobile
+  const keyLegend = document.getElementById('keyLegend');
+  if (keyLegend && (isMobile || isSmallScreen)) {
+    keyLegend.addEventListener('click', function(e) {
+      e.stopPropagation();
+      this.classList.toggle('minimized');
+    });
+    
+    // Start minimized on mobile
+    setTimeout(() => {
+      keyLegend.classList.add('minimized');
+    }, 200);
   }
   
   // Double-click detection (DISABLED)
@@ -1269,26 +1550,53 @@
     keyboardState: keyboardState
   };
   
-  // Button event handlers
+  // Button event handlers with visual feedback
   function setupButton(btn, key) {
+    // Prevent context menu on long press
+    btn.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+    
+    // Touch start
     btn.addEventListener('touchstart', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons[key] = true;
-    });
+      btn.classList.add('pressed');
+    }, { passive: false });
     
+    // Touch end
     btn.addEventListener('touchend', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons[key] = false;
-    });
+      btn.classList.remove('pressed');
+    }, { passive: false });
     
+    // Touch cancel (when finger leaves button area)
+    btn.addEventListener('touchcancel', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons[key] = false;
+      btn.classList.remove('pressed');
+    }, { passive: false });
+    
+    // Mouse down
     btn.addEventListener('mousedown', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons[key] = true;
+      btn.classList.add('pressed');
     });
     
+    // Mouse up
     btn.addEventListener('mouseup', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons[key] = false;
+      btn.classList.remove('pressed');
+    });
+    
+    // Mouse leave (when mouse leaves button while pressed)
+    btn.addEventListener('mouseleave', function(e) {
+      window.joystickControl.pressedButtons[key] = false;
+      btn.classList.remove('pressed');
     });
   }
   
@@ -1301,25 +1609,54 @@
   // Hyperspace button handler
   const hyperspaceBtn = document.getElementById('hyperspaceBtn');
   if (hyperspaceBtn) {
+    hyperspaceBtn.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+    
     hyperspaceBtn.addEventListener('touchstart', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons.hyperspace = true;
-    });
+      hyperspaceBtn.classList.add('pressed');
+    }, { passive: false });
     
     hyperspaceBtn.addEventListener('touchend', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons.hyperspace = false;
-    });
+      hyperspaceBtn.classList.remove('pressed');
+    }, { passive: false });
+    
+    hyperspaceBtn.addEventListener('touchcancel', function(e) {
+      e.preventDefault();
+      window.joystickControl.pressedButtons.hyperspace = false;
+      hyperspaceBtn.classList.remove('pressed');
+    }, { passive: false });
     
     hyperspaceBtn.addEventListener('mousedown', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons.hyperspace = true;
+      hyperspaceBtn.classList.add('pressed');
     });
     
     hyperspaceBtn.addEventListener('mouseup', function(e) {
       e.preventDefault();
       window.joystickControl.pressedButtons.hyperspace = false;
+      hyperspaceBtn.classList.remove('pressed');
     });
+    
+    hyperspaceBtn.addEventListener('mouseleave', function(e) {
+      window.joystickControl.pressedButtons.hyperspace = false;
+      hyperspaceBtn.classList.remove('pressed');
+    });
+  }
+  
+  // Prevent iOS Safari bounce/scroll when controls are active
+  if (isMobile) {
+    document.body.addEventListener('touchmove', function(e) {
+      if (controlPanel.classList.contains('active')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
   }
 })();
 
@@ -4456,9 +4793,17 @@ function playAssetAudio(name) {
     ctx.save();
     ctx.shadowBlur = 0;
     
+    // Mobile detection and scaling
+    const isMobileView = window.innerWidth <= 720;
+    const hudScale = isMobileView ? 0.5 : 1;
+    const baseFontSize = 24;
+    const smallFontSize = 14;
+    const mediumFontSize = 16;
+    const tinyFontSize = 12;
+    
     // Score (top left) - or Kills in VS mode, or Kills/Deaths in anyplayer mode
     ctx.fillStyle = 'rgba(126, 240, 163, 0.9)';
-    ctx.font = 'bold 24px system-ui';
+    ctx.font = `bold ${baseFontSize * hudScale}px system-ui`;
     ctx.textAlign = 'left';
     const hudGameMode = window.getGameMode ? window.getGameMode() : 'solo';
     let hudDisplayText = '';
@@ -4470,7 +4815,8 @@ function playAssetAudio(name) {
     } else {
       hudDisplayText = `Score: ${score}`;
     }
-    ctx.fillText(hudDisplayText, 20, 40);
+    const topY = isMobileView ? 25 : 40;
+    ctx.fillText(hudDisplayText, 20, topY);
     
     // Game mode indicator
     if (window.isMultiplayerActive && window.isMultiplayerActive()) {
@@ -4478,35 +4824,35 @@ function playAssetAudio(name) {
       
       if (labelGameMode === 'coop') {
         ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
-        ctx.font = 'bold 24px system-ui';
+        ctx.font = `bold ${baseFontSize * hudScale}px system-ui`;
         ctx.textAlign = 'center';
-        ctx.fillText('CO-OP', canvas.width / 2, 40);
+        ctx.fillText('CO-OP', canvas.width / 2, topY);
       } else if (labelGameMode === 'vs') {
         ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
-        ctx.font = 'bold 14px system-ui';
+        ctx.font = `bold ${smallFontSize * hudScale}px system-ui`;
         ctx.textAlign = 'left';
-        ctx.fillText('⚔️ VS MODE', 20, 65);
+        ctx.fillText('⚔️ VS MODE', 20, topY + (25 * hudScale));
       } else if (labelGameMode === 'anyplayer') {
         ctx.fillStyle = 'rgba(255, 165, 50, 0.9)';
-        ctx.font = 'bold 14px system-ui';
+        ctx.font = `bold ${smallFontSize * hudScale}px system-ui`;
         ctx.textAlign = 'left';
-        ctx.fillText('⚔️ BATTLE ROYALE', 20, 65);
+        ctx.fillText('⚔️ BATTLE ROYALE', 20, topY + (25 * hudScale));
         
         // Bomb count
         ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
-        ctx.font = 'bold 16px system-ui';
+        ctx.font = `bold ${mediumFontSize * hudScale}px system-ui`;
         const bombsAvailable = Math.min(bombCharges, Math.max(0, MAX_BOMBS - bombCount));
-        ctx.fillText(`💣 Bombs: ${bombsAvailable}/${MAX_BOMBS}`, 20, 87);
+        ctx.fillText(`💣 Bombs: ${bombsAvailable}/${MAX_BOMBS}`, 20, topY + (47 * hudScale));
         
         // Heat seeker charges
         ctx.fillStyle = 'rgba(255, 220, 160, 0.95)';
-        ctx.font = 'bold 16px system-ui';
-        ctx.fillText(`🎯 Seekers: ${heatSeekerCharges}/${HEAT_SEEKER_MAX_CHARGES}`, 20, 107);
+        ctx.font = `bold ${mediumFontSize * hudScale}px system-ui`;
+        ctx.fillText(`🎯 Seekers: ${heatSeekerCharges}/${HEAT_SEEKER_MAX_CHARGES}`, 20, topY + (67 * hudScale));
 
         // Q to Quit instruction
         ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
-        ctx.font = 'bold 12px system-ui';
-        ctx.fillText('Press Q to Quit', 20, 127);
+        ctx.font = `bold ${tinyFontSize * hudScale}px system-ui`;
+        ctx.fillText('Press Q to Quit', 20, topY + (87 * hudScale));
 
         // Active powerups indicator
         const activePowerups = [];
@@ -4518,7 +4864,7 @@ function playAssetAudio(name) {
         if (activePowerups.length === 0) {
           activePowerups.push('None');
         }
-        ctx.fillText(`Powerups: ${activePowerups.join(', ')}`, 20, 145);
+        ctx.fillText(`Powerups: ${activePowerups.join(', ')}`, 20, topY + (105 * hudScale));
       }
     }
     
@@ -4528,24 +4874,27 @@ function playAssetAudio(name) {
     if (hudGameModeRight === 'anyplayer') {
       const currentDeaths = window.getPlayerDeaths ? window.getPlayerDeaths() : 0;
       ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
-      ctx.font = 'bold 24px system-ui';
-      ctx.fillText(`Deaths: ${currentDeaths}/50`, canvas.width - 20, 40);
+      ctx.font = `bold ${baseFontSize * hudScale}px system-ui`;
+      ctx.fillText(`Deaths: ${currentDeaths}/50`, canvas.width - (isMobileView ? 10 : 20), topY);
     } else {
-      ctx.fillText('Lives:', canvas.width - 100, 40);
+      const livesOffset = isMobileView ? 60 : 100;
+      ctx.fillText('Lives:', canvas.width - livesOffset, topY);
       // Draw life indicators only in non-anyplayer modes
+      const shipSize = isMobileView ? 8 : 10;
+      const shipSpacing = isMobileView ? 15 : 25;
       for (let i = 0; i < lives; i++) {
-        const x = canvas.width - 70 + (i * 25);
-        const y = 30;
+        const x = canvas.width - (isMobileView ? 40 : 70) + (i * shipSpacing);
+        const y = isMobileView ? 20 : 30;
         
         ctx.save();
         ctx.translate(x, y);
         ctx.strokeStyle = 'rgba(126, 240, 163, 0.8)';
         ctx.fillStyle = 'rgba(126, 240, 163, 0.3)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = isMobileView ? 1 : 2;
         ctx.beginPath();
-        ctx.moveTo(10, 0);
-        ctx.lineTo(-8, -6);
-        ctx.lineTo(-8, 6);
+        ctx.moveTo(shipSize, 0);
+        ctx.lineTo(-shipSize * 0.8, -shipSize * 0.6);
+        ctx.lineTo(-shipSize * 0.8, shipSize * 0.6);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
