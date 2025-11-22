@@ -1566,7 +1566,8 @@ const assetAudioSources = {
   powerup: 'assets/powerup.mp3',
   ufo: 'assets/ufo.mp3',
   laser: 'assets/laser.mp3',
-  powerupinside: 'assets/powerupinside.mp3'
+  powerupinside: 'assets/powerupinside.mp3',
+  ping: 'assets/ping.mp3'
 };
 
 const assetAudioCache = {};
@@ -1630,12 +1631,15 @@ function playAssetAudio(name) {
   const bombs = []; // Bombs for anyplayer mode
   const MAX_BOMBS = 5; // Maximum bombs per player
   let bombCount = 0; // Current number of active bombs
+  let bombCharges = MAX_BOMBS; // Bomb ammo available to drop
   let lastBombRefreshTime = Date.now(); // Track bomb refresh timer
-  const BOMB_REFRESH_INTERVAL = 20000; // 20 seconds
+  const BOMB_REFRESH_INTERVAL = 60000; // 60 seconds (1 minute)
+  const HEAT_SEEKER_MAX_CHARGES = 5;
   const heatSeekers = []; // Active heat seeker missiles
-  let heatSeekerCharges = 0; // Stored charges for launching missiles
+  let heatSeekerCharges = HEAT_SEEKER_MAX_CHARGES; // Stored charges for launching missiles
   let nextHeatSeekerId = 1;
-  const HEAT_SEEKER_MAX_CHARGES = 3;
+  let lastHeatSeekerRefreshTime = Date.now(); // Track heat seeker refresh timer
+  const HEAT_SEEKER_REFRESH_INTERVAL = 60000; // 60 seconds (1 minute)
   const HEAT_SEEKER_DURATION = 8000; // ms lifetime
   const HEAT_SEEKER_SPEED = 6.2;
   const HEAT_SEEKER_TURN_RATE = 0.14;
@@ -1995,10 +1999,22 @@ function playAssetAudio(name) {
       largerForcefield = !!powerups.largerForcefield;
       laserCanon = !!powerups.laserCanon;
       heatSeekerCharges = powerups.heatSeekerCharges || 0;
+    } else if (mode === 'anyplayer') {
+      // In anyplayer mode, don't sync heat seeker charges - they're managed independently
+      dualCannon = dualCannon || powerups.dualCannon;
+      dualThruster = dualThruster || powerups.dualThruster;
+      tripleCannon = tripleCannon || powerups.tripleCannon;
+      thrusterPower = Math.max(thrusterPower, powerups.thrusterPower || 1);
+      cannonRange = Math.max(cannonRange, powerups.cannonRange || 1);
+      energyForcefield = energyForcefield || powerups.energyForcefield;
+      largerForcefield = largerForcefield || powerups.largerForcefield;
+      laserCanon = laserCanon || powerups.laserCanon;
+      // heatSeekerCharges is NOT synced in anyplayer mode
     }
   };
 
   function resetOffensivePowerups() {
+    const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
     dualCannon = false;
     dualThruster = false;
     thrusterPower = 1;
@@ -2008,7 +2024,11 @@ function playAssetAudio(name) {
     largerForcefield = false;
     laserCanon = false;
     lastLaserShot = 0;
-    heatSeekerCharges = 0;
+    bombCharges = MAX_BOMBS;
+    // In battle royale mode, preserve heat seeker charges on death
+    if (gameMode !== 'anyplayer') {
+      heatSeekerCharges = 0;
+    }
     heatSeekers.length = 0;
   }
   
@@ -3171,7 +3191,7 @@ function playAssetAudio(name) {
         
         if ((currentGameMode === 'anyplayer' || currentGameMode === 'vs') && isMultiplayerActive) {
           const bombPressed = keyboard.b || keyboard.B;
-          if (bombPressed && !ship.lastBombState && bombCount < MAX_BOMBS) {
+          if (bombPressed && !ship.lastBombState && bombCharges > 0 && bombCount < MAX_BOMBS) {
             // Drop a bomb at current position
             const currentPlayerId = window.getMyPlayerId ? window.getMyPlayerId() : null;
             const bomb = {
@@ -3184,14 +3204,15 @@ function playAssetAudio(name) {
               countdownWarningPlayed: false
             };
             bombs.push(bomb);
-            bombCount++;
+            bombCount = Math.min(MAX_BOMBS, bombCount + 1);
+            bombCharges = Math.max(0, bombCharges - 1);
             
             // Broadcast bomb to other players
             if (window.broadcastBombDropped) {
               window.broadcastBombDropped(bomb);
-              console.log(`💣 Bomb dropped! (${bombCount}/${MAX_BOMBS}) - Broadcast sent`);
+              console.log(`💣 Bomb dropped! Active: ${bombCount}/${MAX_BOMBS}, Charges left: ${bombCharges}/${MAX_BOMBS} - Broadcast sent`);
             } else {
-              console.log(`💣 Bomb dropped! (${bombCount}/${MAX_BOMBS}) - ⚠️ No broadcast function available!`);
+              console.log(`💣 Bomb dropped! Active: ${bombCount}/${MAX_BOMBS}, Charges left: ${bombCharges}/${MAX_BOMBS} - ⚠️ No broadcast function available!`);
             }
             
             playSound('shoot'); // Use shoot sound for now
@@ -4421,7 +4442,8 @@ function playAssetAudio(name) {
         // Bomb count
         ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
         ctx.font = 'bold 16px system-ui';
-        ctx.fillText(`💣 Bombs: ${bombCount}/${MAX_BOMBS}`, 20, 87);
+        const bombsAvailable = Math.min(bombCharges, Math.max(0, MAX_BOMBS - bombCount));
+        ctx.fillText(`💣 Bombs: ${bombsAvailable}/${MAX_BOMBS}`, 20, 87);
         
         // Heat seeker charges
         ctx.fillStyle = 'rgba(255, 220, 160, 0.95)';
@@ -4521,13 +4543,6 @@ function playAssetAudio(name) {
       ctx.fillText(`🛡️ ${forcefieldText}`, 20, powerupY);
       powerupY += 30;
     }
-    if (heatSeekerCharges > 0) {
-      ctx.fillStyle = 'rgba(255, 220, 160, 0.95)';
-      ctx.font = 'bold 18px system-ui';
-      ctx.textAlign = 'left';
-      ctx.fillText(`🎯 HEAT SEEKERS (${heatSeekerCharges})`, 20, powerupY);
-      powerupY += 30;
-    }
     
     // Game Over message
     if (gameOver) {
@@ -4619,11 +4634,18 @@ function playAssetAudio(name) {
       if (!isVsMode) {
         const now = Date.now();
         
-        // Refresh bomb count every 20 seconds in anyplayer and vs modes
+        // Refresh bomb count every 60 seconds in anyplayer and vs modes
         if ((isAnyPlayerMode || isVsMode) && now - lastBombRefreshTime >= BOMB_REFRESH_INTERVAL) {
-          bombCount = 0; // Reset bomb count
+          bombCharges = MAX_BOMBS;
           lastBombRefreshTime = now;
-          console.log('💣 Bomb count refreshed! You have 5 bombs available.');
+          console.log(`💣 Bomb charges refreshed! You now have ${MAX_BOMBS} bombs available.`);
+        }
+        
+        // Refresh heat seeker charges every 60 seconds in anyplayer mode
+        if (isAnyPlayerMode && now - lastHeatSeekerRefreshTime >= HEAT_SEEKER_REFRESH_INTERVAL) {
+          heatSeekerCharges = HEAT_SEEKER_MAX_CHARGES; // Reset seeker charges to 5
+          lastHeatSeekerRefreshTime = now;
+          console.log(`🎯 Heat seeker charges refreshed! You now have ${HEAT_SEEKER_MAX_CHARGES} seekers available.`);
         }
         
         if (isWorldAuthority) {
@@ -4834,7 +4856,7 @@ function playAssetAudio(name) {
 
     const myId = options.myPlayerId || (window.getMyPlayerId ? window.getMyPlayerId() : null);
     if (Array.isArray(state.bombs)) {
-      bombCount = state.bombs.filter(bomb => bomb && bomb.owner === myId).length;
+      bombCount = Math.min(MAX_BOMBS, state.bombs.filter(bomb => bomb && bomb.owner === myId).length);
     }
   }
 
@@ -4851,7 +4873,12 @@ function playAssetAudio(name) {
   window.getSuperBonuses = () => superBonuses;
   window.getLastSuperBonusTime = () => lastSuperBonusTime;
   window.getBombCount = () => bombCount;
-  window.setBombCount = (count) => { bombCount = count; };
+  window.setBombCount = (count) => { bombCount = Math.max(0, Math.min(count, MAX_BOMBS)); };
+  window.getBombCharges = () => bombCharges;
+  window.getHeatSeekerCharges = () => heatSeekerCharges;
+  window.setHeatSeekerCharges = (count) => {
+    heatSeekerCharges = Math.max(0, Math.min(count, HEAT_SEEKER_MAX_CHARGES));
+  };
   window.addBomb = (bomb) => {
     if (bomb && typeof bomb.countdownWarningPlayed !== 'boolean') {
       bomb.countdownWarningPlayed = false;
@@ -6257,6 +6284,9 @@ function playAssetAudio(name) {
                 lives: 3,
                 score: 0
               };
+              // Play ping sound when a new player joins
+              playAssetAudio('ping');
+              console.log(`🎵 Player ${playerId.substring(0, 6)} joined the battle royale!`);
             }
           });
         }
@@ -6385,10 +6415,17 @@ function playAssetAudio(name) {
         console.log(`Spawned at random position: (${Math.round(ship.x)}, ${Math.round(ship.y)})`);
       }
       
+      // Initialize bombs and seekers for Battle Royale
+      bombCount = 0; // No active bombs at start
+      bombCharges = MAX_BOMBS;
+      lastBombRefreshTime = Date.now(); // Reset bomb refresh timer
+      heatSeekerCharges = HEAT_SEEKER_MAX_CHARGES; // Start with max seekers
+      lastHeatSeekerRefreshTime = Date.now(); // Reset heat seeker refresh timer
+      
       // Clear bombs from previous games
       if (window.clearBombs) {
         window.clearBombs();
-        window.setBombCount(0);
+        window.setBombCount(0); // Reset active bomb count
       }
       
       // Clear super bonuses
