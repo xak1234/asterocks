@@ -1627,7 +1627,7 @@ function playAssetAudio(name) {
   const ufoBullets = [];
   const aliens = []; // Rare powerful aliens
   const shootingStars = []; // Fast-moving medium asteroids
-  const SHOOTING_STARS_ENABLED = false;
+  const SHOOTING_STARS_ENABLED = true;
   const bombs = []; // Bombs for anyplayer mode
   const MAX_BOMBS = 5; // Maximum bombs per player
   let bombCount = 0; // Current number of active bombs
@@ -1703,7 +1703,9 @@ function playAssetAudio(name) {
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
         size: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.5 + 0.3
+        baseOpacity: Math.random() * 0.5 + 0.3,
+        twinkleSpeed: Math.random() * 2 + 0.5,
+        twinklePhase: Math.random() * Math.PI * 2
       });
     }
   }
@@ -2645,7 +2647,7 @@ function playAssetAudio(name) {
   spawnHugeAsteroid();
   
   // Create particle effect
-  function createParticles(x, y, count) {
+  function createParticles(x, y, count, color) {
     // Cap total particles to 500 for performance
     if (particles.length > 500) {
       particles.splice(0, count + 50); // Remove oldest particles
@@ -2659,7 +2661,8 @@ function playAssetAudio(name) {
           y: (Math.random() - 0.5) * 4
         },
         life: 1,
-        size: Math.random() * 2 + 1
+        size: Math.random() * 2 + 1,
+        color: color || `255, ${Math.floor(Math.random() * 150 + 100)}, 0`
       });
     }
   }
@@ -3624,6 +3627,97 @@ function playAssetAudio(name) {
         const dist = Math.sqrt(distSq);
         
         if (dist < minDist && dist > 0) {
+          // In battle royale mode, check if small rock should break when hitting large boulder
+          const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+          let shouldBreakSmallRock = false;
+          let smallRockIndex = -1;
+          let largeRockIndex = -1;
+          
+          if (currentGameMode === 'anyplayer') {
+            // Define small rock (<=30px) and large boulder (>=80px) thresholds
+            const isAsteroidSmall = asteroid.size <= 30;
+            const isOtherAsteroidLarge = otherAsteroid.size >= 80;
+            const isAsteroidLarge = asteroid.size >= 80;
+            const isOtherAsteroidSmall = otherAsteroid.size <= 30;
+            
+            if (isAsteroidSmall && isOtherAsteroidLarge) {
+              shouldBreakSmallRock = true;
+              smallRockIndex = index;
+              largeRockIndex = otherIndex;
+            } else if (isOtherAsteroidSmall && isAsteroidLarge) {
+              shouldBreakSmallRock = true;
+              smallRockIndex = otherIndex;
+              largeRockIndex = index;
+            }
+          }
+          
+          if (shouldBreakSmallRock) {
+            // Break the small rock into two fragments
+            const smallRock = asteroids[smallRockIndex];
+            const largeRock = asteroids[largeRockIndex];
+            
+            createParticles(smallRock.x, smallRock.y, 15);
+            playSound('hit');
+            
+            // Create two fragments from the small rock
+            const fragmentSize = smallRock.size / 2;
+            const separation = fragmentSize + 5;
+            
+            // Calculate fragment positions
+            const angle1 = Math.random() * Math.PI * 2;
+            const angle2 = angle1 + Math.PI + (Math.random() - 0.5) * 0.8; // Roughly opposite direction
+            
+            const fragment1 = createAsteroid(
+              smallRock.x + Math.cos(angle1) * separation,
+              smallRock.y + Math.sin(angle1) * separation,
+              fragmentSize,
+              {
+                x: Math.cos(angle1) * 3 + smallRock.velocity.x * 0.3,
+                y: Math.sin(angle1) * 3 + smallRock.velocity.y * 0.3
+              },
+              smallRock.isRed,
+              smallRock.fragmentId,
+              smallRock.isBlue,
+              smallRock.blueFragmentId
+            );
+            
+            const fragment2 = createAsteroid(
+              smallRock.x + Math.cos(angle2) * separation,
+              smallRock.y + Math.sin(angle2) * separation,
+              fragmentSize,
+              {
+                x: Math.cos(angle2) * 3 + smallRock.velocity.x * 0.3,
+                y: Math.sin(angle2) * 3 + smallRock.velocity.y * 0.3
+              },
+              smallRock.isRed,
+              smallRock.fragmentId,
+              smallRock.isBlue,
+              smallRock.blueFragmentId
+            );
+            
+            // Remove the small rock and add fragments
+            asteroids.splice(smallRockIndex, 1);
+            
+            // Adjust otherIndex if needed (if we removed an asteroid before it)
+            if (smallRockIndex < otherIndex) {
+              otherIndex--;
+            }
+            
+            // Add fragments
+            asteroids.push(fragment1, fragment2);
+            
+            console.log(`💥 Small rock shattered against large boulder in battle royale!`);
+            
+            // Apply bouncing force to the large rock
+            const bounceForce = 2;
+            const bounceAngle = Math.atan2(largeRock.y - smallRock.y, largeRock.x - smallRock.x);
+            largeRock.velocity.x += Math.cos(bounceAngle) * bounceForce;
+            largeRock.velocity.y += Math.sin(bounceAngle) * bounceForce;
+            
+            continue; // Skip normal collision physics
+          }
+          
+          // Normal collision physics (when not breaking small rocks)
           // Collision detected - apply simplified physics
           const mass1 = asteroid.size;
           const mass2 = otherAsteroid.size;
@@ -4059,13 +4153,17 @@ function playAssetAudio(name) {
   
   // Draw functions
   function drawStars() {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    const now = Date.now() / 1000;
     for (let i = 0; i < stars.length; i++) {
       const star = stars[i];
-      ctx.globalAlpha = star.opacity;
-      ctx.fillRect(star.x, star.y, star.size, star.size);
+      // Twinkle effect
+      const opacity = star.baseOpacity + Math.sin(now * star.twinkleSpeed + star.twinklePhase) * 0.2;
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, Math.min(1, opacity))})`;
+      
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.globalAlpha = 1;
   }
   
   function drawShip() {
@@ -4132,55 +4230,72 @@ function playAssetAudio(name) {
     }
     
     // Ship body (triangle)
-    ctx.strokeStyle = isWinning ? 'rgba(255, 215, 0, 0.8)' : 'rgba(126, 240, 163, 0.6)';
-    ctx.fillStyle = isWinning ? 'rgba(255, 215, 0, 0.2)' : 'rgba(126, 240, 163, 0.1)';
-    ctx.lineWidth = isWinning ? 3 : 2;
+    ctx.strokeStyle = isWinning ? 'rgba(255, 215, 0, 0.9)' : 'rgba(126, 240, 163, 0.9)';
+    
+    // Gradient fill for ship
+    const shipGrad = ctx.createLinearGradient(-ship.size, 0, ship.size, 0);
     if (isWinning) {
-      ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
-      ctx.shadowBlur = 8;
+        shipGrad.addColorStop(0, 'rgba(255, 215, 0, 0.1)');
+        shipGrad.addColorStop(1, 'rgba(255, 215, 0, 0.4)');
+    } else {
+        shipGrad.addColorStop(0, 'rgba(126, 240, 163, 0.1)');
+        shipGrad.addColorStop(1, 'rgba(126, 240, 163, 0.4)');
     }
+    ctx.fillStyle = shipGrad;
+    
+    ctx.lineWidth = isWinning ? 3 : 2;
+    
+    // Always glow
+    ctx.shadowColor = isWinning ? 'rgba(255, 215, 0, 0.8)' : 'rgba(126, 240, 163, 0.8)';
+    ctx.shadowBlur = 15;
+    
     ctx.beginPath();
     ctx.moveTo(ship.size, 0);
     ctx.lineTo(-ship.size, -ship.size / 2);
+    ctx.lineTo(-ship.size * 0.6, 0); // Indent at back
     ctx.lineTo(-ship.size, ship.size / 2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    if (isWinning) {
-      ctx.shadowBlur = 0;
-    }
+    
+    // Keep glow for thrust
+    // ctx.shadowBlur = 0;
     
     // Thrust flames
     if (ship.thrust) {
+      const flicker = Math.random() * 0.3 + 0.7;
       if (dualThruster) {
         // Dual thruster flames (larger and brighter)
         ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
-        ctx.shadowColor = 'rgba(255, 200, 50, 0.6)';
-        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(255, 200, 50, 0.8)';
+        ctx.shadowBlur = 20;
         // Top flame
         ctx.beginPath();
-        ctx.moveTo(-ship.size, -ship.size / 2.5);
-        ctx.lineTo(-ship.size - 18, -ship.size / 4);
-        ctx.lineTo(-ship.size, -ship.size / 6);
+        ctx.moveTo(-ship.size * 0.8, -ship.size / 2.5);
+        ctx.lineTo(-ship.size - (18 * flicker), -ship.size / 4);
+        ctx.lineTo(-ship.size * 0.8, -ship.size / 6);
         ctx.closePath();
         ctx.fill();
         // Bottom flame
         ctx.beginPath();
-        ctx.moveTo(-ship.size, ship.size / 2.5);
-        ctx.lineTo(-ship.size - 18, ship.size / 4);
-        ctx.lineTo(-ship.size, ship.size / 6);
+        ctx.moveTo(-ship.size * 0.8, ship.size / 2.5);
+        ctx.lineTo(-ship.size - (18 * flicker), ship.size / 4);
+        ctx.lineTo(-ship.size * 0.8, ship.size / 6);
         ctx.closePath();
         ctx.fill();
         ctx.shadowBlur = 0;
       } else {
         // Single thruster flame
-        ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+        ctx.fillStyle = 'rgba(255, 100, 0, 0.8)';
+        ctx.shadowColor = 'rgba(255, 100, 0, 0.8)';
+        ctx.shadowBlur = 20;
         ctx.beginPath();
-        ctx.moveTo(-ship.size, -ship.size / 3);
-        ctx.lineTo(-ship.size - 10, 0);
-        ctx.lineTo(-ship.size, ship.size / 3);
+        ctx.moveTo(-ship.size * 0.6, -ship.size / 3);
+        ctx.lineTo(-ship.size - (15 * flicker), 0);
+        ctx.lineTo(-ship.size * 0.6, ship.size / 3);
         ctx.closePath();
         ctx.fill();
+        ctx.shadowBlur = 0;
       }
     }
     
@@ -4196,22 +4311,32 @@ function playAssetAudio(name) {
       
       // Special asteroids have different appearance
       if (asteroid.isRed) {
-        ctx.strokeStyle = 'rgba(255, 107, 107, 0.8)';
-        ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
+        ctx.strokeStyle = 'rgba(255, 107, 107, 0.9)';
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, asteroid.size);
+        grad.addColorStop(0, 'rgba(255, 107, 107, 0.4)');
+        grad.addColorStop(1, 'rgba(255, 107, 107, 0.1)');
+        ctx.fillStyle = grad;
         ctx.lineWidth = 3;
-        ctx.shadowColor = 'rgba(255, 107, 107, 0.6)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(255, 107, 107, 0.8)';
+        ctx.shadowBlur = 15;
       } else if (asteroid.isBlue) {
-        ctx.strokeStyle = 'rgba(100, 180, 255, 0.8)';
-        ctx.fillStyle = 'rgba(100, 180, 255, 0.2)';
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.9)';
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, asteroid.size);
+        grad.addColorStop(0, 'rgba(100, 180, 255, 0.4)');
+        grad.addColorStop(1, 'rgba(100, 180, 255, 0.1)');
+        ctx.fillStyle = grad;
         ctx.lineWidth = 3;
-        ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(100, 180, 255, 0.8)';
+        ctx.shadowBlur = 15;
       } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.strokeStyle = 'rgba(220, 220, 255, 0.6)';
+        const grad = ctx.createRadialGradient(-asteroid.size*0.3, -asteroid.size*0.3, 0, 0, 0, asteroid.size);
+        grad.addColorStop(0, 'rgba(80, 80, 90, 0.3)');
+        grad.addColorStop(1, 'rgba(30, 30, 40, 0.1)');
+        ctx.fillStyle = grad;
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 5;
       }
       
       ctx.beginPath();
@@ -4294,10 +4419,13 @@ function playAssetAudio(name) {
         ctx.stroke();
         ctx.shadowBlur = 0;
       } else {
-        ctx.fillStyle = 'rgba(126, 200, 255, 0.8)';
+        ctx.fillStyle = 'rgba(126, 200, 255, 0.9)';
+        ctx.shadowColor = 'rgba(126, 200, 255, 0.8)';
+        ctx.shadowBlur = 5;
         ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 2, 0, Math.PI * 2);
+        ctx.arc(bullet.x, bullet.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
       }
     }
   }
@@ -4393,8 +4521,11 @@ function playAssetAudio(name) {
   function drawParticles() {
     for (let i = 0; i < particles.length; i++) {
       const particle = particles[i];
-      ctx.fillStyle = `rgba(255, 255, 255, ${particle.life * 0.6})`;
-      ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+      const color = particle.color || '255, 255, 255';
+      ctx.fillStyle = `rgba(${color}, ${particle.life})`;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   
@@ -4727,6 +4858,7 @@ function playAssetAudio(name) {
     
     // Draw (always draw even when paused) - add error handling
     try {
+      drawNebula();
       drawStars();
       drawAsteroids();
       drawShootingStars();
