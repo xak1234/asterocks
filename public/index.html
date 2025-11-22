@@ -1232,7 +1232,9 @@
     'h': false, // Hyperspace
     'H': false, // Hyperspace (uppercase)
     's': false, // Heat seeker
-    'S': false  // Heat seeker (uppercase)
+    'S': false, // Heat seeker (uppercase)
+    'i': false, // Invincibility toggle
+    'I': false  // Invincibility toggle (uppercase)
   };
 
   // Listen for keyboard events
@@ -1680,6 +1682,11 @@ function playAssetAudio(name) {
   let playerKills = 0; // Battle Royale kills counter
   let playerDeaths = 0; // Battle Royale deaths counter
   
+  // Dev invincibility mode
+  let invincibilityMode = false;
+  let invincKeyPresses = [];
+  const INVINC_KEY_WINDOW = 1000; // ms - time window for 3 presses
+  
   // Super Bonuses for Battle Royale
   let superBonuses = [];
   let lastSuperBonusTime = Date.now();
@@ -2043,21 +2050,25 @@ function playAssetAudio(name) {
       lives--;
       
       // In royal mode, track deaths instead of lives
-      if (gameMode === 'anyplayer') {
-        playerDeaths++;
-        console.log(`Hit by other player! Deaths: ${playerDeaths}/50`);
-      } else {
-        console.log(`Hit by other player! Lives remaining: ${lives}`);
+      if (!invincibilityMode) {
+        if (gameMode === 'anyplayer') {
+          playerDeaths++;
+          console.log(`Hit by other player! Deaths: ${playerDeaths}/50`);
+        } else {
+          console.log(`Hit by other player! Lives remaining: ${lives}`);
+        }
       }
       
       resetOffensivePowerups();
-      ship.exploded = true;
-      ship.respawnTime = Date.now() + 3000;
+      if (!invincibilityMode) {
+        ship.exploded = true;
+        ship.respawnTime = Date.now() + 3000;
+      }
       createParticles(ship.x, ship.y, 30);
       playSound('explosion');
       
       // Check game over conditions
-      const shouldGameOver = gameMode === 'anyplayer' ? playerDeaths >= 50 : lives <= 0;
+      const shouldGameOver = !invincibilityMode && (gameMode === 'anyplayer' ? playerDeaths >= 50 : lives <= 0);
       
       if (shouldGameOver) {
         // Opponent killed us - they get a kill
@@ -2430,26 +2441,30 @@ function playAssetAudio(name) {
             ufo.y += Math.sin(pushAngle) * 50;
           } else {
             // Ship destroyed by UFO collision
-            lives--;
-            resetOffensivePowerups();
-            ship.exploded = true;
-            ship.respawnTime = Date.now() + 3000;
+            if (!invincibilityMode) {
+              lives--;
+              resetOffensivePowerups();
+              ship.exploded = true;
+              ship.respawnTime = Date.now() + 3000;
+            }
             createParticles(ship.x, ship.y, 30);
             playSound('explosion');
             
-            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-            if (currentGameMode === 'anyplayer') {
-              playerDeaths++;
-              console.log(`Ship destroyed by UFO collision! Deaths: ${playerDeaths}/50`);
-              if (playerDeaths >= 50) {
-                gameOver = true;
-                console.log('GAME OVER!');
-              }
-            } else {
-              console.log(`Ship destroyed by UFO collision! Lives remaining: ${lives}`);
-              if (lives <= 0) {
-                gameOver = true;
-                console.log('GAME OVER!');
+            if (!invincibilityMode) {
+              const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+              if (currentGameMode === 'anyplayer') {
+                playerDeaths++;
+                console.log(`Ship destroyed by UFO collision! Deaths: ${playerDeaths}/50`);
+                if (playerDeaths >= 50) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
+              } else {
+                console.log(`Ship destroyed by UFO collision! Lives remaining: ${lives}`);
+                if (lives <= 0) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
               }
             }
           }
@@ -2521,34 +2536,38 @@ function playAssetAudio(name) {
         
         if (dist < ship.size) {
           // Ship hit by UFO bullet - always destroyed!
-          lives--;
-          resetOffensivePowerups();
-          ship.exploded = true;
-          ship.respawnTime = Date.now() + 3000;
+          if (!invincibilityMode) {
+            lives--;
+            resetOffensivePowerups();
+            ship.exploded = true;
+            ship.respawnTime = Date.now() + 3000;
+          }
           createParticles(ship.x, ship.y, 30);
           ufoBullets.splice(index, 1);
           playSound('explosion');
           
-          const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-          if (currentGameMode === 'anyplayer') {
-            playerDeaths++;
-            
-            // Lose all powerups on death
-            dualCannon = false;
-            energyForcefield = false;
-            dualThruster = false;
-            thrusterPower = 1;
-            
-            console.log(`Ship destroyed by UFO bullet! Deaths: ${playerDeaths}/50`);
-            if (playerDeaths >= 50) {
-              gameOver = true;
-              console.log('GAME OVER!');
-            }
-          } else {
-            console.log(`Ship destroyed by UFO bullet! Lives remaining: ${lives}`);
-            if (lives <= 0) {
-              gameOver = true;
-              console.log('GAME OVER!');
+          if (!invincibilityMode) {
+            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+            if (currentGameMode === 'anyplayer') {
+              playerDeaths++;
+              
+              // Lose all powerups on death
+              dualCannon = false;
+              energyForcefield = false;
+              dualThruster = false;
+              thrusterPower = 1;
+              
+              console.log(`Ship destroyed by UFO bullet! Deaths: ${playerDeaths}/50`);
+              if (playerDeaths >= 50) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
+            } else {
+              console.log(`Ship destroyed by UFO bullet! Lives remaining: ${lives}`);
+              if (lives <= 0) {
+                gameOver = true;
+                console.log('GAME OVER!');
+              }
             }
           }
           return;
@@ -3220,6 +3239,28 @@ function playAssetAudio(name) {
           ship.lastBombState = bombPressed;
         }
       }
+      
+      // Handle invincibility toggle (I key pressed 3 times)
+      const invincPressed = keyboard.i || keyboard.I;
+      if (invincPressed && !ship.lastInvincState) {
+        // Record this key press
+        invincKeyPresses.push(now);
+        
+        // Remove old presses outside the time window
+        invincKeyPresses = invincKeyPresses.filter(time => now - time < INVINC_KEY_WINDOW);
+        
+        // Check if we have 3 presses in the window
+        if (invincKeyPresses.length >= 3) {
+          invincibilityMode = !invincibilityMode;
+          invincKeyPresses = []; // Reset after toggle
+          console.log(invincibilityMode ? '🛡️ INVINCIBILITY ACTIVATED' : '🛡️ INVINCIBILITY DEACTIVATED');
+        }
+        
+        ship.lastInvincState = true;
+      }
+      if (!invincPressed) {
+        ship.lastInvincState = false;
+      }
     } else {
       // Original autonomous AI
       ship.lastFireState = false;
@@ -3390,29 +3431,33 @@ function playAssetAudio(name) {
             console.log('🛡️ FORCEFIELD ABSORBED BOMB!');
           } else {
             // Ship explodes!
-            lives--;
-            if (bomb.owner && bomb.owner !== currentPlayerId) {
-              transmitPowerupsToPlayer(bomb.owner, { mode: currentGameMode, reason: 'bomb' });
+            if (!invincibilityMode) {
+              lives--;
+              if (bomb.owner && bomb.owner !== currentPlayerId) {
+                transmitPowerupsToPlayer(bomb.owner, { mode: currentGameMode, reason: 'bomb' });
+              }
+              resetOffensivePowerups();
+              ship.exploded = true;
+              ship.respawnTime = Date.now() + 3000;
             }
-            resetOffensivePowerups();
-            ship.exploded = true;
-            ship.respawnTime = Date.now() + 3000;
             createBombExplosion(bomb.x, bomb.y);
             playSound('explosion');
             
-            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-            if (currentGameMode === 'anyplayer') {
-              playerDeaths++;
-              console.log(`Ship destroyed by bomb! Deaths: ${playerDeaths}/50`);
-              if (playerDeaths >= 50) {
-                gameOver = true;
-                console.log('GAME OVER!');
-              }
-            } else {
-              console.log(`Ship destroyed by bomb! Lives remaining: ${lives}`);
-              if (lives <= 0) {
-                gameOver = true;
-                console.log('GAME OVER!');
+            if (!invincibilityMode) {
+              const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+              if (currentGameMode === 'anyplayer') {
+                playerDeaths++;
+                console.log(`Ship destroyed by bomb! Deaths: ${playerDeaths}/50`);
+                if (playerDeaths >= 50) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
+              } else {
+                console.log(`Ship destroyed by bomb! Lives remaining: ${lives}`);
+                if (lives <= 0) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
               }
             }
             
@@ -3472,26 +3517,30 @@ function playAssetAudio(name) {
             asteroid.velocity.y += Math.sin(pushAngle) * 3;
           } else {
             // Ship explodes!
-            lives--;
-            resetOffensivePowerups();
-            ship.exploded = true;
-            ship.respawnTime = Date.now() + 3000; // Respawn after 3 seconds
+            if (!invincibilityMode) {
+              lives--;
+              resetOffensivePowerups();
+              ship.exploded = true;
+              ship.respawnTime = Date.now() + 3000; // Respawn after 3 seconds
+            }
             createParticles(ship.x, ship.y, 30);
             playSound('explosion');
             
-            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-            if (currentGameMode === 'anyplayer') {
-              playerDeaths++;
-              console.log(`Ship destroyed by large asteroid! Deaths: ${playerDeaths}/50`);
-              if (playerDeaths >= 50) {
-                gameOver = true;
-                console.log('GAME OVER!');
-              }
-            } else {
-              console.log(`Ship destroyed by large asteroid! Lives remaining: ${lives}`);
-              if (lives <= 0) {
-                gameOver = true;
-                console.log('GAME OVER!');
+            if (!invincibilityMode) {
+              const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+              if (currentGameMode === 'anyplayer') {
+                playerDeaths++;
+                console.log(`Ship destroyed by large asteroid! Deaths: ${playerDeaths}/50`);
+                if (playerDeaths >= 50) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
+              } else {
+                console.log(`Ship destroyed by large asteroid! Lives remaining: ${lives}`);
+                if (lives <= 0) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
               }
             }
           }
@@ -3720,32 +3769,36 @@ function playAssetAudio(name) {
             star.velocity.x += Math.cos(pushAngle) * 4;
             star.velocity.y += Math.sin(pushAngle) * 4;
           } else {
-            lives--;
-            dualCannon = false;
-            dualThruster = false;
-            thrusterPower = 1;
-            tripleCannon = false;
-            cannonRange = 1;
-            largerForcefield = false;
-            laserCanon = false;
-            lastLaserShot = 0;
-            ship.exploded = true;
-            ship.respawnTime = Date.now() + 3000;
+            if (!invincibilityMode) {
+              lives--;
+              dualCannon = false;
+              dualThruster = false;
+              thrusterPower = 1;
+              tripleCannon = false;
+              cannonRange = 1;
+              largerForcefield = false;
+              laserCanon = false;
+              lastLaserShot = 0;
+              ship.exploded = true;
+              ship.respawnTime = Date.now() + 3000;
+            }
             createParticles(ship.x, ship.y, 30);
             playSound('explosion');
-            const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
-            if (currentGameMode === 'anyplayer') {
-              playerDeaths++;
-              console.log(`Ship destroyed by shooting star! Deaths: ${playerDeaths}/50`);
-              if (playerDeaths >= 50) {
-                gameOver = true;
-                console.log('GAME OVER!');
-              }
-            } else {
-              console.log(`Ship destroyed by shooting star! Lives remaining: ${lives}`);
-              if (lives <= 0) {
-                gameOver = true;
-                console.log('GAME OVER!');
+            if (!invincibilityMode) {
+              const currentGameMode = window.getGameMode ? window.getGameMode() : 'solo';
+              if (currentGameMode === 'anyplayer') {
+                playerDeaths++;
+                console.log(`Ship destroyed by shooting star! Deaths: ${playerDeaths}/50`);
+                if (playerDeaths >= 50) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
+              } else {
+                console.log(`Ship destroyed by shooting star! Lives remaining: ${lives}`);
+                if (lives <= 0) {
+                  gameOver = true;
+                  console.log('GAME OVER!');
+                }
               }
             }
             shootingStars.splice(i, 1);
@@ -4462,7 +4515,6 @@ function playAssetAudio(name) {
         if (dualThruster || thrusterPower > 1) activePowerups.push('Dual Thruster');
         if (energyForcefield) activePowerups.push(largerForcefield ? 'Mega Forcefield' : 'Forcefield');
         if (laserCanon) activePowerups.push('Laser');
-        if (heatSeekerCharges > 0) activePowerups.push(`Seeker x${heatSeekerCharges}`);
         if (activePowerups.length === 0) {
           activePowerups.push('None');
         }
@@ -4541,6 +4593,19 @@ function playAssetAudio(name) {
       ctx.font = 'bold 18px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`🛡️ ${forcefieldText}`, 20, powerupY);
+      powerupY += 30;
+    }
+    
+    // Invincibility indicator
+    if (invincibilityMode) {
+      const invincPulse = 0.6 + Math.sin(Date.now() / 150) * 0.3;
+      ctx.fillStyle = `rgba(255, 215, 0, ${invincPulse})`;
+      ctx.font = 'bold 20px system-ui';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+      ctx.shadowBlur = 15;
+      ctx.fillText('⭐ INVINCIBLE', 20, powerupY);
+      ctx.shadowBlur = 0;
       powerupY += 30;
     }
     
@@ -5030,23 +5095,17 @@ function playAssetAudio(name) {
       togglePause();
     }
     
-    // Q key to quit Battle Royale back to lobby
+    // Q key to quit game back to lobby
     if ((e.key === 'q' || e.key === 'Q')) {
-      const gameMode = window.getGameMode ? window.getGameMode() : 'solo';
-      const gameOver = window.getGameOver ? window.getGameOver() : false;
+      e.preventDefault();
       
-      // Allow quitting only in Battle Royale mode
-      if (gameMode === 'anyplayer') {
-        e.preventDefault();
-        
-        // Reset game state and show lobby
-        if (window.setGameOver) {
-          window.setGameOver(true);
-        }
-        
-        // Reload page to return to lobby
-        window.location.reload(true);
+      // Reset game state and show lobby
+      if (window.setGameOver) {
+        window.setGameOver(true);
       }
+      
+      // Reload page to return to lobby
+      window.location.reload(true);
     }
   });
   
